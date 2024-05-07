@@ -93655,6 +93655,15 @@ class DotnetInstallScript {
 }
 exports.DotnetInstallScript = DotnetInstallScript;
 class DotnetInstallDir {
+    static getlinuxdefaultpath() {
+        try {
+            (0, fs_1.accessSync)('/usr/share/dotnet', fs_1.constants.W_OK);
+            return "/usr/share/dotnet";
+        }
+        catch (err) {
+            return path_1.default.join(process.env['HOME'] + '', '.dotnet');
+        }
+    }
     static convertInstallPathToAbsolute(installDir) {
         if (path_1.default.isAbsolute(installDir))
             return path_1.default.normalize(installDir);
@@ -93673,7 +93682,7 @@ class DotnetInstallDir {
 }
 exports.DotnetInstallDir = DotnetInstallDir;
 DotnetInstallDir.default = {
-    linux: '/usr/share/dotnet',
+    linux: DotnetInstallDir.getlinuxdefaultpath(),
     mac: path_1.default.join(process.env['HOME'] + '', '.dotnet'),
     windows: path_1.default.join(process.env['PROGRAMFILES'] + '', 'dotnet')
 };

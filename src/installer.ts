@@ -3,7 +3,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
 import * as hc from '@actions/http-client';
-import {chmodSync} from 'fs';
+import {chmodSync,constants,accessSync} from 'fs';
 import path from 'path';
 import os from 'os';
 import semver from 'semver';
@@ -217,10 +217,19 @@ export class DotnetInstallScript {
 
 export abstract class DotnetInstallDir {
   private static readonly default = {
-    linux: '/usr/share/dotnet',
+    linux: DotnetInstallDir.getlinuxdefaultpath(),
     mac: path.join(process.env['HOME'] + '', '.dotnet'),
     windows: path.join(process.env['PROGRAMFILES'] + '', 'dotnet')
   };
+
+  public static getlinuxdefaultpath() {
+  try {
+    accessSync('/usr/share/dotnet', constants.W_OK);
+    return "/usr/share/dotnet";
+  } catch (err) {
+    return path.join(process.env['HOME'] + '', '.dotnet');
+  }
+}
 
   public static readonly dirPath = process.env['DOTNET_INSTALL_DIR']
     ? DotnetInstallDir.convertInstallPathToAbsolute(
@@ -243,6 +252,7 @@ export abstract class DotnetInstallDir {
     core.exportVariable('DOTNET_ROOT', process.env['DOTNET_INSTALL_DIR']);
   }
 
+ 
   public static setEnvironmentVariable() {
     process.env['DOTNET_INSTALL_DIR'] = DotnetInstallDir.dirPath;
   }
