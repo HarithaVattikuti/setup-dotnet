@@ -897,7 +897,8 @@ construct_legacy_download_link() {
 get_user_install_path() {
     eval $invocation
 
-    if [ ! -z "${DOTNET_INSTALL_DIR:-}" ]; then
+#    if [ ! -z "${DOTNET_INSTALL_DIR:-}" ]; then
+        if [ ! -z "${DOTNET_INSTALL_DIR:-}" ] || [-w "${DOTNET_INSTALL_DIR}"  ]; then
         echo "$DOTNET_INSTALL_DIR"
     else
         echo "$HOME/.dotnet"
