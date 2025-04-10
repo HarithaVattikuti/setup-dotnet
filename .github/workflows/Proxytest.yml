@@ -1,6 +1,9 @@
 name: Proxytest
 
 on:
+  push:
+    branches:
+      - cacheupgrade
   workflow_dispatch:
 
 jobs:
