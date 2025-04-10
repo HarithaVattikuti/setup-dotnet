@@ -1,0 +1,77 @@
+name: Proxytest
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-proxyonsourceurl:
+    runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:22.04
+      options: --dns 127.0.0.1
+    services:
+      squid-proxy:
+        image: ubuntu/squid:latest
+        ports:
+          - 3128:3128
+    env:
+      https_proxy: http://squid-proxy:3128
+      http_proxy: http://squid-proxy:3128
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Powershell
+        run: |
+          apt-get update
+          apt-get install -y wget apt-transport-https software-properties-common libicu-dev
+          wget -q "https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+          dpkg -i packages-microsoft-prod.deb
+          rm packages-microsoft-prod.deb
+          apt-get update
+          apt-get install -y powershell
+      - name: Clear toolcache
+        shell: pwsh
+        run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
+      - name: Setup dotnet 
+        uses: ./
+        with:
+          dotnet-version: 8.x
+          source-url: https://api.nuget.org/v3/index.json
+        env:
+          NUGET_AUTH_TOKEN: NOTATOKEN
+  
+  test-proxynosourceurl:
+    runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:22.04
+      options: --dns 127.0.0.1
+    services:
+      squid-proxy:
+        image: ubuntu/squid:latest
+        ports:
+          - 3128:3128
+    env:
+      https_proxy: http://squid-proxy:3128
+      http_proxy: http://squid-proxy:3128
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Powershell
+        run: |
+          apt-get update
+          apt-get install -y wget apt-transport-https software-properties-common libicu-dev
+          wget -q "https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+          dpkg -i packages-microsoft-prod.deb
+          rm packages-microsoft-prod.deb
+          apt-get update
+          apt-get install -y powershell
+      - name: Clear toolcache
+        shell: pwsh
+        run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
+      - name: Setup dotnet 
+        uses: ./
+        with:
+          dotnet-version: 8.x
+          # source-url: https://api.nuget.org/v3/index.json
+        env:
+          NUGET_AUTH_TOKEN: NOTATOKEN
