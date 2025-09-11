@@ -16406,6 +16406,9 @@ exports.userAgentPolicy = userAgentPolicy;
 /***/ 6279:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
+"use strict";
+
+
 var CombinedStream = __nccwpck_require__(5443);
 var util = __nccwpck_require__(3837);
 var path = __nccwpck_require__(1017);
@@ -16414,15 +16417,12 @@ var https = __nccwpck_require__(5687);
 var parseUrl = (__nccwpck_require__(7310).parse);
 var fs = __nccwpck_require__(7147);
 var Stream = (__nccwpck_require__(2781).Stream);
+var crypto = __nccwpck_require__(6113);
 var mime = __nccwpck_require__(3583);
 var asynckit = __nccwpck_require__(4812);
+var setToStringTag = __nccwpck_require__(1770);
+var hasOwn = __nccwpck_require__(2157);
 var populate = __nccwpck_require__(3971);
-
-// Public API
-module.exports = FormData;
-
-// make it a Stream
-util.inherits(FormData, CombinedStream);
 
 /**
  * Create readable "multipart/form-data" streams.
@@ -16430,7 +16430,7 @@ util.inherits(FormData, CombinedStream);
  * and file uploads to other web applications.
  *
  * @constructor
- * @param {Object} options - Properties to be added/overriden for FormData and CombinedStream
+ * @param {object} options - Properties to be added/overriden for FormData and CombinedStream
  */
 function FormData(options) {
   if (!(this instanceof FormData)) {
@@ -16443,35 +16443,39 @@ function FormData(options) {
 
   CombinedStream.call(this);
 
-  options = options || {};
-  for (var option in options) {
+  options = options || {}; // eslint-disable-line no-param-reassign
+  for (var option in options) { // eslint-disable-line no-restricted-syntax
     this[option] = options[option];
   }
 }
 
+// make it a Stream
+util.inherits(FormData, CombinedStream);
+
 FormData.LINE_BREAK = '\r\n';
 FormData.DEFAULT_CONTENT_TYPE = 'application/octet-stream';
 
-FormData.prototype.append = function(field, value, options) {
-
-  options = options || {};
+FormData.prototype.append = function (field, value, options) {
+  options = options || {}; // eslint-disable-line no-param-reassign
 
   // allow filename as single option
-  if (typeof options == 'string') {
-    options = {filename: options};
+  if (typeof options === 'string') {
+    options = { filename: options }; // eslint-disable-line no-param-reassign
   }
 
   var append = CombinedStream.prototype.append.bind(this);
 
   // all that streamy business can't handle numbers
-  if (typeof value == 'number') {
-    value = '' + value;
+  if (typeof value === 'number' || value == null) {
+    value = String(value); // eslint-disable-line no-param-reassign
   }
 
   // https://github.com/felixge/node-form-data/issues/38
-  if (util.isArray(value)) {
-    // Please convert your array into string
-    // the way web server expects it
+  if (Array.isArray(value)) {
+    /*
+     * Please convert your array into string
+     * the way web server expects it
+     */
     this._error(new Error('Arrays are not supported.'));
     return;
   }
@@ -16487,15 +16491,17 @@ FormData.prototype.append = function(field, value, options) {
   this._trackLength(header, value, options);
 };
 
-FormData.prototype._trackLength = function(header, value, options) {
+FormData.prototype._trackLength = function (header, value, options) {
   var valueLength = 0;
 
-  // used w/ getLengthSync(), when length is known.
-  // e.g. for streaming directly from a remote server,
-  // w/ a known file a size, and not wanting to wait for
-  // incoming file to finish to get its size.
+  /*
+   * used w/ getLengthSync(), when length is known.
+   * e.g. for streaming directly from a remote server,
+   * w/ a known file a size, and not wanting to wait for
+   * incoming file to finish to get its size.
+   */
   if (options.knownLength != null) {
-    valueLength += +options.knownLength;
+    valueLength += Number(options.knownLength);
   } else if (Buffer.isBuffer(value)) {
     valueLength = value.length;
   } else if (typeof value === 'string') {
@@ -16505,12 +16511,10 @@ FormData.prototype._trackLength = function(header, value, options) {
   this._valueLength += valueLength;
 
   // @check why add CRLF? does this account for custom/multiple CRLFs?
-  this._overheadLength +=
-    Buffer.byteLength(header) +
-    FormData.LINE_BREAK.length;
+  this._overheadLength += Buffer.byteLength(header) + FormData.LINE_BREAK.length;
 
   // empty or either doesn't have path or not an http response or not a stream
-  if (!value || ( !value.path && !(value.readable && value.hasOwnProperty('httpVersion')) && !(value instanceof Stream))) {
+  if (!value || (!value.path && !(value.readable && hasOwn(value, 'httpVersion')) && !(value instanceof Stream))) {
     return;
   }
 
@@ -16520,10 +16524,8 @@ FormData.prototype._trackLength = function(header, value, options) {
   }
 };
 
-FormData.prototype._lengthRetriever = function(value, callback) {
-
-  if (value.hasOwnProperty('fd')) {
-
+FormData.prototype._lengthRetriever = function (value, callback) {
+  if (hasOwn(value, 'fd')) {
     // take read range into a account
     // `end` = Infinity –> read file till the end
     //
@@ -16532,54 +16534,52 @@ FormData.prototype._lengthRetriever = function(value, callback) {
     // Fix it when node fixes it.
     // https://github.com/joyent/node/issues/7819
     if (value.end != undefined && value.end != Infinity && value.start != undefined) {
-
       // when end specified
       // no need to calculate range
       // inclusive, starts with 0
-      callback(null, value.end + 1 - (value.start ? value.start : 0));
+      callback(null, value.end + 1 - (value.start ? value.start : 0)); // eslint-disable-line callback-return
 
-    // not that fast snoopy
+      // not that fast snoopy
     } else {
       // still need to fetch file size from fs
-      fs.stat(value.path, function(err, stat) {
-
-        var fileSize;
-
+      fs.stat(value.path, function (err, stat) {
         if (err) {
           callback(err);
           return;
         }
 
         // update final size based on the range options
-        fileSize = stat.size - (value.start ? value.start : 0);
+        var fileSize = stat.size - (value.start ? value.start : 0);
         callback(null, fileSize);
       });
     }
 
-  // or http response
-  } else if (value.hasOwnProperty('httpVersion')) {
-    callback(null, +value.headers['content-length']);
+    // or http response
+  } else if (hasOwn(value, 'httpVersion')) {
+    callback(null, Number(value.headers['content-length'])); // eslint-disable-line callback-return
 
-  // or request stream http://github.com/mikeal/request
-  } else if (value.hasOwnProperty('httpModule')) {
+    // or request stream http://github.com/mikeal/request
+  } else if (hasOwn(value, 'httpModule')) {
     // wait till response come back
-    value.on('response', function(response) {
+    value.on('response', function (response) {
       value.pause();
-      callback(null, +response.headers['content-length']);
+      callback(null, Number(response.headers['content-length']));
     });
     value.resume();
 
-  // something else
+    // something else
   } else {
-    callback('Unknown stream');
+    callback('Unknown stream'); // eslint-disable-line callback-return
   }
 };
 
-FormData.prototype._multiPartHeader = function(field, value, options) {
-  // custom header specified (as string)?
-  // it becomes responsible for boundary
-  // (e.g. to handle extra CRLFs on .NET servers)
-  if (typeof options.header == 'string') {
+FormData.prototype._multiPartHeader = function (field, value, options) {
+  /*
+   * custom header specified (as string)?
+   * it becomes responsible for boundary
+   * (e.g. to handle extra CRLFs on .NET servers)
+   */
+  if (typeof options.header === 'string') {
     return options.header;
   }
 
@@ -16587,7 +16587,7 @@ FormData.prototype._multiPartHeader = function(field, value, options) {
   var contentType = this._getContentType(value, options);
 
   var contents = '';
-  var headers  = {
+  var headers = {
     // add custom disposition as third element or keep it two elements if not
     'Content-Disposition': ['form-data', 'name="' + field + '"'].concat(contentDisposition || []),
     // if no content type. allow it to be empty array
@@ -16595,77 +16595,74 @@ FormData.prototype._multiPartHeader = function(field, value, options) {
   };
 
   // allow custom headers.
-  if (typeof options.header == 'object') {
+  if (typeof options.header === 'object') {
     populate(headers, options.header);
   }
 
   var header;
-  for (var prop in headers) {
-    if (!headers.hasOwnProperty(prop)) continue;
-    header = headers[prop];
+  for (var prop in headers) { // eslint-disable-line no-restricted-syntax
+    if (hasOwn(headers, prop)) {
+      header = headers[prop];
 
-    // skip nullish headers.
-    if (header == null) {
-      continue;
-    }
+      // skip nullish headers.
+      if (header == null) {
+        continue; // eslint-disable-line no-restricted-syntax, no-continue
+      }
 
-    // convert all headers to arrays.
-    if (!Array.isArray(header)) {
-      header = [header];
-    }
+      // convert all headers to arrays.
+      if (!Array.isArray(header)) {
+        header = [header];
+      }
 
-    // add non-empty headers.
-    if (header.length) {
-      contents += prop + ': ' + header.join('; ') + FormData.LINE_BREAK;
+      // add non-empty headers.
+      if (header.length) {
+        contents += prop + ': ' + header.join('; ') + FormData.LINE_BREAK;
+      }
     }
   }
 
   return '--' + this.getBoundary() + FormData.LINE_BREAK + contents + FormData.LINE_BREAK;
 };
 
-FormData.prototype._getContentDisposition = function(value, options) {
-
-  var filename
-    , contentDisposition
-    ;
+FormData.prototype._getContentDisposition = function (value, options) { // eslint-disable-line consistent-return
+  var filename;
 
   if (typeof options.filepath === 'string') {
     // custom filepath for relative paths
     filename = path.normalize(options.filepath).replace(/\\/g, '/');
-  } else if (options.filename || value.name || value.path) {
-    // custom filename take precedence
-    // formidable and the browser add a name property
-    // fs- and request- streams have path property
-    filename = path.basename(options.filename || value.name || value.path);
-  } else if (value.readable && value.hasOwnProperty('httpVersion')) {
+  } else if (options.filename || (value && (value.name || value.path))) {
+    /*
+     * custom filename take precedence
+     * formidable and the browser add a name property
+     * fs- and request- streams have path property
+     */
+    filename = path.basename(options.filename || (value && (value.name || value.path)));
+  } else if (value && value.readable && hasOwn(value, 'httpVersion')) {
     // or try http response
     filename = path.basename(value.client._httpMessage.path || '');
   }
 
   if (filename) {
-    contentDisposition = 'filename="' + filename + '"';
+    return 'filename="' + filename + '"';
   }
-
-  return contentDisposition;
 };
 
-FormData.prototype._getContentType = function(value, options) {
-
+FormData.prototype._getContentType = function (value, options) {
   // use custom content-type above all
   var contentType = options.contentType;
 
   // or try `name` from formidable, browser
-  if (!contentType && value.name) {
+  if (!contentType && value && value.name) {
     contentType = mime.lookup(value.name);
   }
 
   // or try `path` from fs-, request- streams
-  if (!contentType && value.path) {
+  if (!contentType && value && value.path) {
     contentType = mime.lookup(value.path);
   }
 
   // or if it's http-reponse
-  if (!contentType && value.readable && value.hasOwnProperty('httpVersion')) {
+  if (!contentType && value && value.readable && hasOwn(value, 'httpVersion')) {
     contentType = value.headers['content-type'];
   }
 
@@ -16675,18 +16672,18 @@ FormData.prototype._getContentType = function(value, options) {
   }
 
   // fallback to the default content type if `value` is not simple value
-  if (!contentType && typeof value == 'object') {
+  if (!contentType && value && typeof value === 'object') {
     contentType = FormData.DEFAULT_CONTENT_TYPE;
   }
 
   return contentType;
 };
 
-FormData.prototype._multiPartFooter = function() {
-  return function(next) {
+FormData.prototype._multiPartFooter = function () {
+  return function (next) {
     var footer = FormData.LINE_BREAK;
 
-    var lastPart = (this._streams.length === 0);
+    var lastPart = this._streams.length === 0;
     if (lastPart) {
       footer += this._lastBoundary();
     }
@@ -16695,18 +16692,18 @@ FormData.prototype._multiPartFooter = function() {
   }.bind(this);
 };
 
-FormData.prototype._lastBoundary = function() {
+FormData.prototype._lastBoundary = function () {
   return '--' + this.getBoundary() + '--' + FormData.LINE_BREAK;
 };
 
-FormData.prototype.getHeaders = function(userHeaders) {
+FormData.prototype.getHeaders = function (userHeaders) {
   var header;
   var formHeaders = {
     'content-type': 'multipart/form-data; boundary=' + this.getBoundary()
   };
 
-  for (header in userHeaders) {
-    if (userHeaders.hasOwnProperty(header)) {
+  for (header in userHeaders) { // eslint-disable-line no-restricted-syntax
+    if (hasOwn(userHeaders, header)) {
       formHeaders[header.toLowerCase()] = userHeaders[header];
     }
   }
@@ -16714,11 +16711,14 @@ FormData.prototype.getHeaders = function(userHeaders) {
   return formHeaders;
 };
 
-FormData.prototype.setBoundary = function(boundary) {
+FormData.prototype.setBoundary = function (boundary) {
+  if (typeof boundary !== 'string') {
+    throw new TypeError('FormData boundary must be a string');
+  }
   this._boundary = boundary;
 };
 
-FormData.prototype.getBoundary = function() {
+FormData.prototype.getBoundary = function () {
   if (!this._boundary) {
     this._generateBoundary();
   }
@@ -16726,60 +16726,55 @@ FormData.prototype.getBoundary = function() {
   return this._boundary;
 };
 
-FormData.prototype.getBuffer = function() {
-  var dataBuffer = new Buffer.alloc( 0 );
+FormData.prototype.getBuffer = function () {
+  var dataBuffer = new Buffer.alloc(0); // eslint-disable-line new-cap
   var boundary = this.getBoundary();
 
   // Create the form content. Add Line breaks to the end of data.
   for (var i = 0, len = this._streams.length; i < len; i++) {
     if (typeof this._streams[i] !== 'function') {
-
       // Add content to the buffer.
-      if(Buffer.isBuffer(this._streams[i])) {
-        dataBuffer = Buffer.concat( [dataBuffer, this._streams[i]]);
-      }else {
-        dataBuffer = Buffer.concat( [dataBuffer, Buffer.from(this._streams[i])]);
+      if (Buffer.isBuffer(this._streams[i])) {
+        dataBuffer = Buffer.concat([dataBuffer, this._streams[i]]);
+      } else {
+        dataBuffer = Buffer.concat([dataBuffer, Buffer.from(this._streams[i])]);
       }
 
       // Add break after content.
-      if (typeof this._streams[i] !== 'string' || this._streams[i].substring( 2, boundary.length + 2 ) !== boundary) {
-        dataBuffer = Buffer.concat( [dataBuffer, Buffer.from(FormData.LINE_BREAK)] );
+      if (typeof this._streams[i] !== 'string' || this._streams[i].substring(2, boundary.length + 2) !== boundary) {
+        dataBuffer = Buffer.concat([dataBuffer, Buffer.from(FormData.LINE_BREAK)]);
       }
     }
   }
 
   // Add the footer and return the Buffer object.
-  return Buffer.concat( [dataBuffer, Buffer.from(this._lastBoundary())] );
+  return Buffer.concat([dataBuffer, Buffer.from(this._lastBoundary())]);
 };
 
-FormData.prototype._generateBoundary = function() {
+FormData.prototype._generateBoundary = function () {
   // This generates a 50 character boundary similar to those used by Firefox.
-  // They are optimized for boyer-moore parsing.
-  var boundary = '--------------------------';
-  for (var i = 0; i < 24; i++) {
-    boundary += Math.floor(Math.random() * 10).toString(16);
-  }
 
-  this._boundary = boundary;
+  // They are optimized for boyer-moore parsing.
+  this._boundary = '--------------------------' + crypto.randomBytes(12).toString('hex');
 };
 
 // Note: getLengthSync DOESN'T calculate streams length
-// As workaround one can calculate file size manually
-// and add it as knownLength option
-FormData.prototype.getLengthSync = function() {
+// As workaround one can calculate file size manually and add it as knownLength option
+FormData.prototype.getLengthSync = function () {
   var knownLength = this._overheadLength + this._valueLength;
 
-  // Don't get confused, there are 3 "internal" streams for each keyval pair
-  // so it basically checks if there is any value added to the form
+  // Don't get confused, there are 3 "internal" streams for each keyval pair so it basically checks if there is any value added to the form
   if (this._streams.length) {
     knownLength += this._lastBoundary().length;
   }
 
   // https://github.com/form-data/form-data/issues/40
   if (!this.hasKnownLength()) {
-    // Some async length retrievers are present
-    // therefore synchronous length calculation is false.
-    // Please use getLength(callback) to get proper length
+    /*
+     * Some async length retrievers are present
+     * therefore synchronous length calculation is false.
+     * Please use getLength(callback) to get proper length
+     */
     this._error(new Error('Cannot calculate proper length in synchronous way.'));
   }
 
@@ -16789,7 +16784,7 @@ FormData.prototype.getLengthSync = function() {
 // Public API to check if length of added values is known
 // https://github.com/form-data/form-data/issues/196
 // https://github.com/form-data/form-data/issues/262
-FormData.prototype.hasKnownLength = function() {
+FormData.prototype.hasKnownLength = function () {
   var hasKnownLength = true;
 
   if (this._valuesToMeasure.length) {
@@ -16799,7 +16794,7 @@ FormData.prototype.hasKnownLength = function() {
   return hasKnownLength;
 };
 
-FormData.prototype.getLength = function(cb) {
+FormData.prototype.getLength = function (cb) {
   var knownLength = this._overheadLength + this._valueLength;
 
   if (this._streams.length) {
@@ -16811,13 +16806,13 @@ FormData.prototype.getLength = function(cb) {
     return;
   }
 
-  asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function(err, values) {
+  asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function (err, values) {
     if (err) {
       cb(err);
       return;
     }
 
-    values.forEach(function(length) {
+    values.forEach(function (length) {
       knownLength += length;
     });
 
@@ -16825,31 +16820,26 @@ FormData.prototype.getLength = function(cb) {
   });
 };
 
-FormData.prototype.submit = function(params, cb) {
-  var request
-    , options
-    , defaults = {method: 'post'}
-    ;
+FormData.prototype.submit = function (params, cb) {
+  var request;
+  var options;
+  var defaults = { method: 'post' };
 
-  // parse provided url if it's string
-  // or treat it as options object
-  if (typeof params == 'string') {
-
-    params = parseUrl(params);
+  // parse provided url if it's string or treat it as options object
+  if (typeof params === 'string') {
+    params = parseUrl(params); // eslint-disable-line no-param-reassign
+    /* eslint sort-keys: 0 */
     options = populate({
       port: params.port,
       path: params.pathname,
       host: params.hostname,
       protocol: params.protocol
     }, defaults);
-
-  // use custom params
-  } else {
-
+  } else { // use custom params
     options = populate(params, defaults);
     // if no port provided use default one
     if (!options.port) {
-      options.port = options.protocol == 'https:' ? 443 : 80;
+      options.port = options.protocol === 'https:' ? 443 : 80;
     }
   }
 
@@ -16857,14 +16847,14 @@ FormData.prototype.submit = function(params, cb) {
   options.headers = this.getHeaders(params.headers);
 
   // https if specified, fallback to http in any other case
-  if (options.protocol == 'https:') {
+  if (options.protocol === 'https:') {
     request = https.request(options);
   } else {
     request = http.request(options);
   }
 
   // get content length and fire away
-  this.getLength(function(err, length) {
+  this.getLength(function (err, length) {
     if (err && err !== 'Unknown stream') {
       this._error(err);
       return;
@@ -16883,7 +16873,7 @@ FormData.prototype.submit = function(params, cb) {
         request.removeListener('error', callback);
         request.removeListener('response', onResponse);
 
-        return cb.call(this, error, responce);
+        return cb.call(this, error, responce); // eslint-disable-line no-invalid-this
       };
 
       onResponse = callback.bind(this, null);
@@ -16896,7 +16886,7 @@ FormData.prototype.submit = function(params, cb) {
   return request;
 };
 
-FormData.prototype._error = function(err) {
+FormData.prototype._error = function (err) {
   if (!this.error) {
     this.error = err;
     this.pause();
@@ -16907,6 +16897,10 @@ FormData.prototype._error = function(err) {
 FormData.prototype.toString = function () {
   return '[object FormData]';
 };
+setToStringTag(FormData, 'FormData');
+
+// Public API
+module.exports = FormData;
 
 
 /***/ }),
@@ -16914,12 +16908,13 @@ FormData.prototype.toString = function () {
 /***/ 3971:
 /***/ ((module) => {
 
-// populates missing values
-module.exports = function(dst, src) {
+"use strict";
 
-  Object.keys(src).forEach(function(prop)
-  {
-    dst[prop] = dst[prop] || src[prop];
+
+// populates missing values
+module.exports = function (dst, src) {
+  Object.keys(src).forEach(function (prop) {
+    dst[prop] = dst[prop] || src[prop]; // eslint-disable-line no-param-reassign
   });
 
   return dst;
@@ -56893,7 +56888,7 @@ function expand(str, isTop) {
   var isOptions = m.body.indexOf(',') >= 0;
   if (!isSequence && !isOptions) {
     // {a},b}
-    if (m.post.match(/,.*\}/)) {
+    if (m.post.match(/,(?!,).*\}/)) {
       str = m.pre + '{' + m.body + escClose + m.post;
       return expand(str);
     }
@@ -56983,6 +56978,83 @@ function expand(str, isTop) {
   return expansions;
 }
 
+
+
+/***/ }),
+
+/***/ 9227:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var bind = __nccwpck_require__(8334);
+
+var $apply = __nccwpck_require__(4177);
+var $call = __nccwpck_require__(2808);
+var $reflectApply = __nccwpck_require__(8309);
+
+/** @type {import('./actualApply')} */
+module.exports = $reflectApply || bind.call($call, $apply);
+
+
+/***/ }),
+
+/***/ 4177:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./functionApply')} */
+module.exports = Function.prototype.apply;
+
+
+/***/ }),
+
+/***/ 2808:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./functionCall')} */
+module.exports = Function.prototype.call;
+
+
+/***/ }),
+
+/***/ 6815:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var bind = __nccwpck_require__(8334);
+var $TypeError = __nccwpck_require__(6361);
+
+var $call = __nccwpck_require__(2808);
+var $actualApply = __nccwpck_require__(9227);
+
+/** @type {(args: [Function, thisArg?: unknown, ...args: unknown[]]) => Function} TODO FIXME, find a way to use import('.') */
+module.exports = function callBindBasic(args) {
+	if (args.length < 1 || typeof args[0] !== 'function') {
+		throw new $TypeError('a function is required');
+	}
+	return $actualApply(bind, $call, args);
+};
+
+
+/***/ }),
+
+/***/ 8309:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./reflectApply')} */
+module.exports = typeof Reflect !== 'undefined' && Reflect && Reflect.apply;
 
 
 /***/ }),
@@ -57360,6 +57432,205 @@ class Deprecation extends Error {
 }
 
 exports.Deprecation = Deprecation;
+
+
+/***/ }),
+
+/***/ 2693:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var callBind = __nccwpck_require__(6815);
+var gOPD = __nccwpck_require__(8501);
+
+var hasProtoAccessor;
+try {
+	// eslint-disable-next-line no-extra-parens, no-proto
+	hasProtoAccessor = /** @type {{ __proto__?: typeof Array.prototype }} */ ([]).__proto__ === Array.prototype;
+} catch (e) {
+	if (!e || typeof e !== 'object' || !('code' in e) || e.code !== 'ERR_PROTO_ACCESS') {
+		throw e;
+	}
+}
+
+// eslint-disable-next-line no-extra-parens
+var desc = !!hasProtoAccessor && gOPD && gOPD(Object.prototype, /** @type {keyof typeof Object.prototype} */ ('__proto__'));
+
+var $Object = Object;
+var $getPrototypeOf = $Object.getPrototypeOf;
+
+/** @type {import('./get')} */
+module.exports = desc && typeof desc.get === 'function'
+	? callBind([desc.get])
+	: typeof $getPrototypeOf === 'function'
+		? /** @type {import('./get')} */ function getDunder(value) {
+			// eslint-disable-next-line eqeqeq
+			return $getPrototypeOf(value == null ? value : $Object(value));
+		}
+		: false;
+
+
+/***/ }),
+
+/***/ 6123:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('.')} */
+var $defineProperty = Object.defineProperty || false;
+if ($defineProperty) {
+	try {
+		$defineProperty({}, 'a', { value: 1 });
+	} catch (e) {
+		// IE 8 has a broken defineProperty
+		$defineProperty = false;
+	}
+}
+
+module.exports = $defineProperty;
+
+
+/***/ }),
+
+/***/ 1933:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./eval')} */
+module.exports = EvalError;
+
+
+/***/ }),
+
+/***/ 8015:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('.')} */
+module.exports = Error;
+
+
+/***/ }),
+
+/***/ 4415:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./range')} */
+module.exports = RangeError;
+
+
+/***/ }),
+
+/***/ 9246:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./ref')} */
+module.exports = ReferenceError;
+
+
+/***/ }),
+
+/***/ 5474:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./syntax')} */
+module.exports = SyntaxError;
+
+
+/***/ }),
+
+/***/ 6361:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./type')} */
+module.exports = TypeError;
+
+
+/***/ }),
+
+/***/ 5065:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./uri')} */
+module.exports = URIError;
+
+
+/***/ }),
+
+/***/ 8308:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('.')} */
+module.exports = Object;
+
+
+/***/ }),
+
+/***/ 1770:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var GetIntrinsic = __nccwpck_require__(4538);
+
+var $defineProperty = GetIntrinsic('%Object.defineProperty%', true);
+
+var hasToStringTag = __nccwpck_require__(9038)();
+var hasOwn = __nccwpck_require__(2157);
+var $TypeError = __nccwpck_require__(6361);
+
+var toStringTag = hasToStringTag ? Symbol.toStringTag : null;
+
+/** @type {import('.')} */
+module.exports = function setToStringTag(object, value) {
+	var overrideIfSet = arguments.length > 2 && !!arguments[2] && arguments[2].force;
+	var nonConfigurable = arguments.length > 2 && !!arguments[2] && arguments[2].nonConfigurable;
+	if (
+		(typeof overrideIfSet !== 'undefined' && typeof overrideIfSet !== 'boolean')
+		|| (typeof nonConfigurable !== 'undefined' && typeof nonConfigurable !== 'boolean')
+	) {
+		throw new $TypeError('if provided, the `overrideIfSet` and `nonConfigurable` options must be booleans');
+	}
+	if (toStringTag && (overrideIfSet || !hasOwn(object, toStringTag))) {
+		if ($defineProperty) {
+			$defineProperty(object, toStringTag, {
+				configurable: !nonConfigurable,
+				enumerable: false,
+				value: value,
+				writable: false
+			});
+		} else {
+			object[toStringTag] = value; // eslint-disable-line no-param-reassign
+		}
+	}
+};
 
 
 /***/ }),
@@ -59365,6 +59636,700 @@ module.exports = XmlNode;
 
 /***/ }),
 
+/***/ 9320:
+/***/ ((module) => {
+
+"use strict";
+
+
+/* eslint no-invalid-this: 1 */
+
+var ERROR_MESSAGE = 'Function.prototype.bind called on incompatible ';
+var toStr = Object.prototype.toString;
+var max = Math.max;
+var funcType = '[object Function]';
+
+var concatty = function concatty(a, b) {
+    var arr = [];
+
+    for (var i = 0; i < a.length; i += 1) {
+        arr[i] = a[i];
+    }
+    for (var j = 0; j < b.length; j += 1) {
+        arr[j + a.length] = b[j];
+    }
+
+    return arr;
+};
+
+var slicy = function slicy(arrLike, offset) {
+    var arr = [];
+    for (var i = offset || 0, j = 0; i < arrLike.length; i += 1, j += 1) {
+        arr[j] = arrLike[i];
+    }
+    return arr;
+};
+
+var joiny = function (arr, joiner) {
+    var str = '';
+    for (var i = 0; i < arr.length; i += 1) {
+        str += arr[i];
+        if (i + 1 < arr.length) {
+            str += joiner;
+        }
+    }
+    return str;
+};
+
+module.exports = function bind(that) {
+    var target = this;
+    if (typeof target !== 'function' || toStr.apply(target) !== funcType) {
+        throw new TypeError(ERROR_MESSAGE + target);
+    }
+    var args = slicy(arguments, 1);
+
+    var bound;
+    var binder = function () {
+        if (this instanceof bound) {
+            var result = target.apply(
+                this,
+                concatty(args, arguments)
+            );
+            if (Object(result) === result) {
+                return result;
+            }
+            return this;
+        }
+        return target.apply(
+            that,
+            concatty(args, arguments)
+        );
+
+    };
+
+    var boundLength = max(0, target.length - args.length);
+    var boundArgs = [];
+    for (var i = 0; i < boundLength; i++) {
+        boundArgs[i] = '$' + i;
+    }
+
+    bound = Function('binder', 'return function (' + joiny(boundArgs, ',') + '){ return binder.apply(this,arguments); }')(binder);
+
+    if (target.prototype) {
+        var Empty = function Empty() {};
+        Empty.prototype = target.prototype;
+        bound.prototype = new Empty();
+        Empty.prototype = null;
+    }
+
+    return bound;
+};
+
+
+/***/ }),
+
+/***/ 8334:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var implementation = __nccwpck_require__(9320);
+
+module.exports = Function.prototype.bind || implementation;
+
+
+/***/ }),
+
+/***/ 4538:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var undefined;
+
+var $Object = __nccwpck_require__(8308);
+
+var $Error = __nccwpck_require__(8015);
+var $EvalError = __nccwpck_require__(1933);
+var $RangeError = __nccwpck_require__(4415);
+var $ReferenceError = __nccwpck_require__(9246);
+var $SyntaxError = __nccwpck_require__(5474);
+var $TypeError = __nccwpck_require__(6361);
+var $URIError = __nccwpck_require__(5065);
+
+var abs = __nccwpck_require__(9775);
+var floor = __nccwpck_require__(924);
+var max = __nccwpck_require__(2419);
+var min = __nccwpck_require__(3373);
+var pow = __nccwpck_require__(8029);
+var round = __nccwpck_require__(9396);
+var sign = __nccwpck_require__(9091);
+
+var $Function = Function;
+
+// eslint-disable-next-line consistent-return
+var getEvalledConstructor = function (expressionSyntax) {
+	try {
+		return $Function('"use strict"; return (' + expressionSyntax + ').constructor;')();
+	} catch (e) {}
+};
+
+var $gOPD = __nccwpck_require__(8501);
+var $defineProperty = __nccwpck_require__(6123);
+
+var throwTypeError = function () {
+	throw new $TypeError();
+};
+var ThrowTypeError = $gOPD
+	? (function () {
+		try {
+			// eslint-disable-next-line no-unused-expressions, no-caller, no-restricted-properties
+			arguments.callee; // IE 8 does not throw here
+			return throwTypeError;
+		} catch (calleeThrows) {
+			try {
+				// IE 8 throws on Object.getOwnPropertyDescriptor(arguments, '')
+				return $gOPD(arguments, 'callee').get;
+			} catch (gOPDthrows) {
+				return throwTypeError;
+			}
+		}
+	}())
+	: throwTypeError;
+
+var hasSymbols = __nccwpck_require__(587)();
+
+var getProto = __nccwpck_require__(3592);
+var $ObjectGPO = __nccwpck_require__(5045);
+var $ReflectGPO = __nccwpck_require__(8859);
+
+var $apply = __nccwpck_require__(4177);
+var $call = __nccwpck_require__(2808);
+
+var needsEval = {};
+
+var TypedArray = typeof Uint8Array === 'undefined' || !getProto ? undefined : getProto(Uint8Array);
+
+var INTRINSICS = {
+	__proto__: null,
+	'%AggregateError%': typeof AggregateError === 'undefined' ? undefined : AggregateError,
+	'%Array%': Array,
+	'%ArrayBuffer%': typeof ArrayBuffer === 'undefined' ? undefined : ArrayBuffer,
+	'%ArrayIteratorPrototype%': hasSymbols && getProto ? getProto([][Symbol.iterator]()) : undefined,
+	'%AsyncFromSyncIteratorPrototype%': undefined,
+	'%AsyncFunction%': needsEval,
+	'%AsyncGenerator%': needsEval,
+	'%AsyncGeneratorFunction%': needsEval,
+	'%AsyncIteratorPrototype%': needsEval,
+	'%Atomics%': typeof Atomics === 'undefined' ? undefined : Atomics,
+	'%BigInt%': typeof BigInt === 'undefined' ? undefined : BigInt,
+	'%BigInt64Array%': typeof BigInt64Array === 'undefined' ? undefined : BigInt64Array,
+	'%BigUint64Array%': typeof BigUint64Array === 'undefined' ? undefined : BigUint64Array,
+	'%Boolean%': Boolean,
+	'%DataView%': typeof DataView === 'undefined' ? undefined : DataView,
+	'%Date%': Date,
+	'%decodeURI%': decodeURI,
+	'%decodeURIComponent%': decodeURIComponent,
+	'%encodeURI%': encodeURI,
+	'%encodeURIComponent%': encodeURIComponent,
+	'%Error%': $Error,
+	'%eval%': eval, // eslint-disable-line no-eval
+	'%EvalError%': $EvalError,
+	'%Float16Array%': typeof Float16Array === 'undefined' ? undefined : Float16Array,
+	'%Float32Array%': typeof Float32Array === 'undefined' ? undefined : Float32Array,
+	'%Float64Array%': typeof Float64Array === 'undefined' ? undefined : Float64Array,
+	'%FinalizationRegistry%': typeof FinalizationRegistry === 'undefined' ? undefined : FinalizationRegistry,
+	'%Function%': $Function,
+	'%GeneratorFunction%': needsEval,
+	'%Int8Array%': typeof Int8Array === 'undefined' ? undefined : Int8Array,
+	'%Int16Array%': typeof Int16Array === 'undefined' ? undefined : Int16Array,
+	'%Int32Array%': typeof Int32Array === 'undefined' ? undefined : Int32Array,
+	'%isFinite%': isFinite,
+	'%isNaN%': isNaN,
+	'%IteratorPrototype%': hasSymbols && getProto ? getProto(getProto([][Symbol.iterator]())) : undefined,
+	'%JSON%': typeof JSON === 'object' ? JSON : undefined,
+	'%Map%': typeof Map === 'undefined' ? undefined : Map,
+	'%MapIteratorPrototype%': typeof Map === 'undefined' || !hasSymbols || !getProto ? undefined : getProto(new Map()[Symbol.iterator]()),
+	'%Math%': Math,
+	'%Number%': Number,
+	'%Object%': $Object,
+	'%Object.getOwnPropertyDescriptor%': $gOPD,
+	'%parseFloat%': parseFloat,
+	'%parseInt%': parseInt,
+	'%Promise%': typeof Promise === 'undefined' ? undefined : Promise,
+	'%Proxy%': typeof Proxy === 'undefined' ? undefined : Proxy,
+	'%RangeError%': $RangeError,
+	'%ReferenceError%': $ReferenceError,
+	'%Reflect%': typeof Reflect === 'undefined' ? undefined : Reflect,
+	'%RegExp%': RegExp,
+	'%Set%': typeof Set === 'undefined' ? undefined : Set,
+	'%SetIteratorPrototype%': typeof Set === 'undefined' || !hasSymbols || !getProto ? undefined : getProto(new Set()[Symbol.iterator]()),
+	'%SharedArrayBuffer%': typeof SharedArrayBuffer === 'undefined' ? undefined : SharedArrayBuffer,
+	'%String%': String,
+	'%StringIteratorPrototype%': hasSymbols && getProto ? getProto(''[Symbol.iterator]()) : undefined,
+	'%Symbol%': hasSymbols ? Symbol : undefined,
+	'%SyntaxError%': $SyntaxError,
+	'%ThrowTypeError%': ThrowTypeError,
+	'%TypedArray%': TypedArray,
+	'%TypeError%': $TypeError,
+	'%Uint8Array%': typeof Uint8Array === 'undefined' ? undefined : Uint8Array,
+	'%Uint8ClampedArray%': typeof Uint8ClampedArray === 'undefined' ? undefined : Uint8ClampedArray,
+	'%Uint16Array%': typeof Uint16Array === 'undefined' ? undefined : Uint16Array,
+	'%Uint32Array%': typeof Uint32Array === 'undefined' ? undefined : Uint32Array,
+	'%URIError%': $URIError,
+	'%WeakMap%': typeof WeakMap === 'undefined' ? undefined : WeakMap,
+	'%WeakRef%': typeof WeakRef === 'undefined' ? undefined : WeakRef,
+	'%WeakSet%': typeof WeakSet === 'undefined' ? undefined : WeakSet,
+
+	'%Function.prototype.call%': $call,
+	'%Function.prototype.apply%': $apply,
+	'%Object.defineProperty%': $defineProperty,
+	'%Object.getPrototypeOf%': $ObjectGPO,
+	'%Math.abs%': abs,
+	'%Math.floor%': floor,
+	'%Math.max%': max,
+	'%Math.min%': min,
+	'%Math.pow%': pow,
+	'%Math.round%': round,
+	'%Math.sign%': sign,
+	'%Reflect.getPrototypeOf%': $ReflectGPO
+};
+
+if (getProto) {
+	try {
+		null.error; // eslint-disable-line no-unused-expressions
+	} catch (e) {
+		// https://github.com/tc39/proposal-shadowrealm/pull/384#issuecomment-1364264229
+		var errorProto = getProto(getProto(e));
+		INTRINSICS['%Error.prototype%'] = errorProto;
+	}
+}
+
+var doEval = function doEval(name) {
+	var value;
+	if (name === '%AsyncFunction%') {
+		value = getEvalledConstructor('async function () {}');
+	} else if (name === '%GeneratorFunction%') {
+		value = getEvalledConstructor('function* () {}');
+	} else if (name === '%AsyncGeneratorFunction%') {
+		value = getEvalledConstructor('async function* () {}');
+	} else if (name === '%AsyncGenerator%') {
+		var fn = doEval('%AsyncGeneratorFunction%');
+		if (fn) {
+			value = fn.prototype;
+		}
+	} else if (name === '%AsyncIteratorPrototype%') {
+		var gen = doEval('%AsyncGenerator%');
+		if (gen && getProto) {
+			value = getProto(gen.prototype);
+		}
+	}
+
+	INTRINSICS[name] = value;
+
+	return value;
+};
+
+var LEGACY_ALIASES = {
+	__proto__: null,
+	'%ArrayBufferPrototype%': ['ArrayBuffer', 'prototype'],
+	'%ArrayPrototype%': ['Array', 'prototype'],
+	'%ArrayProto_entries%': ['Array', 'prototype', 'entries'],
+	'%ArrayProto_forEach%': ['Array', 'prototype', 'forEach'],
+	'%ArrayProto_keys%': ['Array', 'prototype', 'keys'],
+	'%ArrayProto_values%': ['Array', 'prototype', 'values'],
+	'%AsyncFunctionPrototype%': ['AsyncFunction', 'prototype'],
+	'%AsyncGenerator%': ['AsyncGeneratorFunction', 'prototype'],
+	'%AsyncGeneratorPrototype%': ['AsyncGeneratorFunction', 'prototype', 'prototype'],
+	'%BooleanPrototype%': ['Boolean', 'prototype'],
+	'%DataViewPrototype%': ['DataView', 'prototype'],
+	'%DatePrototype%': ['Date', 'prototype'],
+	'%ErrorPrototype%': ['Error', 'prototype'],
+	'%EvalErrorPrototype%': ['EvalError', 'prototype'],
+	'%Float32ArrayPrototype%': ['Float32Array', 'prototype'],
+	'%Float64ArrayPrototype%': ['Float64Array', 'prototype'],
+	'%FunctionPrototype%': ['Function', 'prototype'],
+	'%Generator%': ['GeneratorFunction', 'prototype'],
+	'%GeneratorPrototype%': ['GeneratorFunction', 'prototype', 'prototype'],
+	'%Int8ArrayPrototype%': ['Int8Array', 'prototype'],
+	'%Int16ArrayPrototype%': ['Int16Array', 'prototype'],
+	'%Int32ArrayPrototype%': ['Int32Array', 'prototype'],
+	'%JSONParse%': ['JSON', 'parse'],
+	'%JSONStringify%': ['JSON', 'stringify'],
+	'%MapPrototype%': ['Map', 'prototype'],
+	'%NumberPrototype%': ['Number', 'prototype'],
+	'%ObjectPrototype%': ['Object', 'prototype'],
+	'%ObjProto_toString%': ['Object', 'prototype', 'toString'],
+	'%ObjProto_valueOf%': ['Object', 'prototype', 'valueOf'],
+	'%PromisePrototype%': ['Promise', 'prototype'],
+	'%PromiseProto_then%': ['Promise', 'prototype', 'then'],
+	'%Promise_all%': ['Promise', 'all'],
+	'%Promise_reject%': ['Promise', 'reject'],
+	'%Promise_resolve%': ['Promise', 'resolve'],
+	'%RangeErrorPrototype%': ['RangeError', 'prototype'],
+	'%ReferenceErrorPrototype%': ['ReferenceError', 'prototype'],
+	'%RegExpPrototype%': ['RegExp', 'prototype'],
+	'%SetPrototype%': ['Set', 'prototype'],
+	'%SharedArrayBufferPrototype%': ['SharedArrayBuffer', 'prototype'],
+	'%StringPrototype%': ['String', 'prototype'],
+	'%SymbolPrototype%': ['Symbol', 'prototype'],
+	'%SyntaxErrorPrototype%': ['SyntaxError', 'prototype'],
+	'%TypedArrayPrototype%': ['TypedArray', 'prototype'],
+	'%TypeErrorPrototype%': ['TypeError', 'prototype'],
+	'%Uint8ArrayPrototype%': ['Uint8Array', 'prototype'],
+	'%Uint8ClampedArrayPrototype%': ['Uint8ClampedArray', 'prototype'],
+	'%Uint16ArrayPrototype%': ['Uint16Array', 'prototype'],
+	'%Uint32ArrayPrototype%': ['Uint32Array', 'prototype'],
+	'%URIErrorPrototype%': ['URIError', 'prototype'],
+	'%WeakMapPrototype%': ['WeakMap', 'prototype'],
+	'%WeakSetPrototype%': ['WeakSet', 'prototype']
+};
+
+var bind = __nccwpck_require__(8334);
+var hasOwn = __nccwpck_require__(2157);
+var $concat = bind.call($call, Array.prototype.concat);
+var $spliceApply = bind.call($apply, Array.prototype.splice);
+var $replace = bind.call($call, String.prototype.replace);
+var $strSlice = bind.call($call, String.prototype.slice);
+var $exec = bind.call($call, RegExp.prototype.exec);
+
+/* adapted from https://github.com/lodash/lodash/blob/4.17.15/dist/lodash.js#L6735-L6744 */
+var rePropName = /[^%.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|%$))/g;
+var reEscapeChar = /\\(\\)?/g; /** Used to match backslashes in property paths. */
+var stringToPath = function stringToPath(string) {
+	var first = $strSlice(string, 0, 1);
+	var last = $strSlice(string, -1);
+	if (first === '%' && last !== '%') {
+		throw new $SyntaxError('invalid intrinsic syntax, expected closing `%`');
+	} else if (last === '%' && first !== '%') {
+		throw new $SyntaxError('invalid intrinsic syntax, expected opening `%`');
+	}
+	var result = [];
+	$replace(string, rePropName, function (match, number, quote, subString) {
+		result[result.length] = quote ? $replace(subString, reEscapeChar, '$1') : number || match;
+	});
+	return result;
+};
+/* end adaptation */
+
+var getBaseIntrinsic = function getBaseIntrinsic(name, allowMissing) {
+	var intrinsicName = name;
+	var alias;
+	if (hasOwn(LEGACY_ALIASES, intrinsicName)) {
+		alias = LEGACY_ALIASES[intrinsicName];
+		intrinsicName = '%' + alias[0] + '%';
+	}
+
+	if (hasOwn(INTRINSICS, intrinsicName)) {
+		var value = INTRINSICS[intrinsicName];
+		if (value === needsEval) {
+			value = doEval(intrinsicName);
+		}
+		if (typeof value === 'undefined' && !allowMissing) {
+			throw new $TypeError('intrinsic ' + name + ' exists, but is not available. Please file an issue!');
+		}
+
+		return {
+			alias: alias,
+			name: intrinsicName,
+			value: value
+		};
+	}
+
+	throw new $SyntaxError('intrinsic ' + name + ' does not exist!');
+};
+
+module.exports = function GetIntrinsic(name, allowMissing) {
+	if (typeof name !== 'string' || name.length === 0) {
+		throw new $TypeError('intrinsic name must be a non-empty string');
+	}
+	if (arguments.length > 1 && typeof allowMissing !== 'boolean') {
+		throw new $TypeError('"allowMissing" argument must be a boolean');
+	}
+
+	if ($exec(/^%?[^%]*%?$/, name) === null) {
+		throw new $SyntaxError('`%` may not be present anywhere but at the beginning and end of the intrinsic name');
+	}
+	var parts = stringToPath(name);
+	var intrinsicBaseName = parts.length > 0 ? parts[0] : '';
+
+	var intrinsic = getBaseIntrinsic('%' + intrinsicBaseName + '%', allowMissing);
+	var intrinsicRealName = intrinsic.name;
+	var value = intrinsic.value;
+	var skipFurtherCaching = false;
+
+	var alias = intrinsic.alias;
+	if (alias) {
+		intrinsicBaseName = alias[0];
+		$spliceApply(parts, $concat([0, 1], alias));
+	}
+
+	for (var i = 1, isOwn = true; i < parts.length; i += 1) {
+		var part = parts[i];
+		var first = $strSlice(part, 0, 1);
+		var last = $strSlice(part, -1);
+		if (
+			(
+				(first === '"' || first === "'" || first === '`')
+				|| (last === '"' || last === "'" || last === '`')
+			)
+			&& first !== last
+		) {
+			throw new $SyntaxError('property names with quotes must have matching quotes');
+		}
+		if (part === 'constructor' || !isOwn) {
+			skipFurtherCaching = true;
+		}
+
+		intrinsicBaseName += '.' + part;
+		intrinsicRealName = '%' + intrinsicBaseName + '%';
+
+		if (hasOwn(INTRINSICS, intrinsicRealName)) {
+			value = INTRINSICS[intrinsicRealName];
+		} else if (value != null) {
+			if (!(part in value)) {
+				if (!allowMissing) {
+					throw new $TypeError('base intrinsic for ' + name + ' exists, but the property is not available.');
+				}
+				return void undefined;
+			}
+			if ($gOPD && (i + 1) >= parts.length) {
+				var desc = $gOPD(value, part);
+				isOwn = !!desc;
+
+				// By convention, when a data property is converted to an accessor
+				// property to emulate a data property that does not suffer from
+				// the override mistake, that accessor's getter is marked with
+				// an `originalValue` property. Here, when we detect this, we
+				// uphold the illusion by pretending to see that original data
+				// property, i.e., returning the value rather than the getter
+				// itself.
+				if (isOwn && 'get' in desc && !('originalValue' in desc.get)) {
+					value = desc.get;
+				} else {
+					value = value[part];
+				}
+			} else {
+				isOwn = hasOwn(value, part);
+				value = value[part];
+			}
+
+			if (isOwn && !skipFurtherCaching) {
+				INTRINSICS[intrinsicRealName] = value;
+			}
+		}
+	}
+	return value;
+};
+
+
+/***/ }),
+
+/***/ 5045:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var $Object = __nccwpck_require__(8308);
+
+/** @type {import('./Object.getPrototypeOf')} */
+module.exports = $Object.getPrototypeOf || null;
+
+
+/***/ }),
+
+/***/ 8859:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./Reflect.getPrototypeOf')} */
+module.exports = (typeof Reflect !== 'undefined' && Reflect.getPrototypeOf) || null;
+
+
+/***/ }),
+
+/***/ 3592:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var reflectGetProto = __nccwpck_require__(8859);
+var originalGetProto = __nccwpck_require__(5045);
+
+var getDunderProto = __nccwpck_require__(2693);
+
+/** @type {import('.')} */
+module.exports = reflectGetProto
+	? function getProto(O) {
+		// @ts-expect-error TS can't narrow inside a closure, for some reason
+		return reflectGetProto(O);
+	}
+	: originalGetProto
+		? function getProto(O) {
+			if (!O || (typeof O !== 'object' && typeof O !== 'function')) {
+				throw new TypeError('getProto: not an object');
+			}
+			// @ts-expect-error TS can't narrow inside a closure, for some reason
+			return originalGetProto(O);
+		}
+		: getDunderProto
+			? function getProto(O) {
+				// @ts-expect-error TS can't narrow inside a closure, for some reason
+				return getDunderProto(O);
+			}
+			: null;
+
+
+/***/ }),
+
+/***/ 7087:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./gOPD')} */
+module.exports = Object.getOwnPropertyDescriptor;
+
+
+/***/ }),
+
+/***/ 8501:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+/** @type {import('.')} */
+var $gOPD = __nccwpck_require__(7087);
+
+if ($gOPD) {
+	try {
+		$gOPD([], 'length');
+	} catch (e) {
+		// IE 8 has a broken gOPD
+		$gOPD = null;
+	}
+}
+
+module.exports = $gOPD;
+
+
+/***/ }),
+
+/***/ 587:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var origSymbol = typeof Symbol !== 'undefined' && Symbol;
+var hasSymbolSham = __nccwpck_require__(7747);
+
+/** @type {import('.')} */
+module.exports = function hasNativeSymbols() {
+	if (typeof origSymbol !== 'function') { return false; }
+	if (typeof Symbol !== 'function') { return false; }
+	if (typeof origSymbol('foo') !== 'symbol') { return false; }
+	if (typeof Symbol('bar') !== 'symbol') { return false; }
+
+	return hasSymbolSham();
+};
+
+
+/***/ }),
+
+/***/ 7747:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./shams')} */
+/* eslint complexity: [2, 18], max-statements: [2, 33] */
+module.exports = function hasSymbols() {
+	if (typeof Symbol !== 'function' || typeof Object.getOwnPropertySymbols !== 'function') { return false; }
+	if (typeof Symbol.iterator === 'symbol') { return true; }
+
+	/** @type {{ [k in symbol]?: unknown }} */
+	var obj = {};
+	var sym = Symbol('test');
+	var symObj = Object(sym);
+	if (typeof sym === 'string') { return false; }
+
+	if (Object.prototype.toString.call(sym) !== '[object Symbol]') { return false; }
+	if (Object.prototype.toString.call(symObj) !== '[object Symbol]') { return false; }
+
+	// temp disabled per https://github.com/ljharb/object.assign/issues/17
+	// if (sym instanceof Symbol) { return false; }
+	// temp disabled per https://github.com/WebReflection/get-own-property-symbols/issues/4
+	// if (!(symObj instanceof Symbol)) { return false; }
+
+	// if (typeof Symbol.prototype.toString !== 'function') { return false; }
+	// if (String(sym) !== Symbol.prototype.toString.call(sym)) { return false; }
+
+	var symVal = 42;
+	obj[sym] = symVal;
+	for (var _ in obj) { return false; } // eslint-disable-line no-restricted-syntax, no-unreachable-loop
+	if (typeof Object.keys === 'function' && Object.keys(obj).length !== 0) { return false; }
+
+	if (typeof Object.getOwnPropertyNames === 'function' && Object.getOwnPropertyNames(obj).length !== 0) { return false; }
+
+	var syms = Object.getOwnPropertySymbols(obj);
+	if (syms.length !== 1 || syms[0] !== sym) { return false; }
+
+	if (!Object.prototype.propertyIsEnumerable.call(obj, sym)) { return false; }
+
+	if (typeof Object.getOwnPropertyDescriptor === 'function') {
+		// eslint-disable-next-line no-extra-parens
+		var descriptor = /** @type {PropertyDescriptor} */ (Object.getOwnPropertyDescriptor(obj, sym));
+		if (descriptor.value !== symVal || descriptor.enumerable !== true) { return false; }
+	}
+
+	return true;
+};
+
+
+/***/ }),
+
+/***/ 9038:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var hasSymbols = __nccwpck_require__(7747);
+
+/** @type {import('.')} */
+module.exports = function hasToStringTagShams() {
+	return hasSymbols() && !!Symbol.toStringTag;
+};
+
+
+/***/ }),
+
+/***/ 2157:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var call = Function.prototype.call;
+var $hasOwn = Object.prototype.hasOwnProperty;
+var bind = __nccwpck_require__(8334);
+
+/** @type {import('.')} */
+module.exports = bind.call(call, $hasOwn);
+
+
+/***/ }),
+
 /***/ 6904:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -60819,6 +61784,111 @@ module.exports = {
         return typeof c === 'string' && /[0-9A-Fa-f]/.test(c)
     },
 }
+
+
+/***/ }),
+
+/***/ 9775:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./abs')} */
+module.exports = Math.abs;
+
+
+/***/ }),
+
+/***/ 924:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./floor')} */
+module.exports = Math.floor;
+
+
+/***/ }),
+
+/***/ 7661:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./isNaN')} */
+module.exports = Number.isNaN || function isNaN(a) {
+	return a !== a;
+};
+
+
+/***/ }),
+
+/***/ 2419:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./max')} */
+module.exports = Math.max;
+
+
+/***/ }),
+
+/***/ 3373:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./min')} */
+module.exports = Math.min;
+
+
+/***/ }),
+
+/***/ 8029:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./pow')} */
+module.exports = Math.pow;
+
+
+/***/ }),
+
+/***/ 9396:
+/***/ ((module) => {
+
+"use strict";
+
+
+/** @type {import('./round')} */
+module.exports = Math.round;
+
+
+/***/ }),
+
+/***/ 9091:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var $isNaN = __nccwpck_require__(7661);
+
+/** @type {import('./sign')} */
+module.exports = function sign(number) {
+	if ($isNaN(number) || number === 0) {
+		return number;
+	}
+	return number < 0 ? -1 : +1;
+};
 
 
 /***/ }),
@@ -77025,7 +78095,7 @@ module.exports = {
 
 
 const { parseSetCookie } = __nccwpck_require__(4408)
-const { stringify, getHeadersList } = __nccwpck_require__(3121)
+const { stringify } = __nccwpck_require__(3121)
 const { webidl } = __nccwpck_require__(1744)
 const { Headers } = __nccwpck_require__(554)
 
@@ -77101,14 +78171,13 @@ function getSetCookies (headers) {
 
   webidl.brandCheck(headers, Headers, { strict: false })
 
-  const cookies = getHeadersList(headers).cookies
+  const cookies = headers.getSetCookie()
 
   if (!cookies) {
     return []
   }
 
-  // In older versions of undici, cookies is a list of name:value.
-  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
+  return cookies.map((pair) => parseSetCookie(pair))
 }
 
 /**
@@ -77536,14 +78605,15 @@ module.exports = {
 /***/ }),
 
 /***/ 3121:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module) => {
 
 "use strict";
 
 
-const assert = __nccwpck_require__(9491)
-const { kHeadersList } = __nccwpck_require__(2785)
-
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
 function isCTLExcludingHtab (value) {
   if (value.length === 0) {
     return false
@@ -77804,31 +78874,13 @@ function stringify (cookie) {
   return out.join('; ')
 }
 
-let kHeadersListNode
-
-function getHeadersList (headers) {
-  if (headers[kHeadersList]) {
-    return headers[kHeadersList]
-  }
-
-  if (!kHeadersListNode) {
-    kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-      (symbol) => symbol.description === 'headers list'
-    )
-
-    assert(kHeadersListNode, 'Headers cannot be parsed')
-  }
-
-  const headersList = headers[kHeadersListNode]
-  assert(headersList)
-
-  return headersList
-}
-
 module.exports = {
   isCTLExcludingHtab,
-  stringify,
-  getHeadersList
+  validateCookieName,
+  validateCookiePath,
+  validateCookieValue,
+  toIMFDate,
+  stringify
 }
 
 
@@ -81832,6 +82884,7 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = __nccwpck_require__(2538)
+const util = __nccwpck_require__(3837)
 const { webidl } = __nccwpck_require__(1744)
 const assert = __nccwpck_require__(9491)
 
@@ -82385,6 +83438,9 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 
@@ -91561,6 +92617,20 @@ class Pool extends PoolBase {
       ? { ...options.interceptors }
       : undefined
     this[kFactory] = factory
+
+    this.on('connectionError', (origin, targets, error) => {
+      // If a connection error occurs, we remove the client from the pool,
+      // and emit a connectionError event. They will not be re-used.
+      // Fixes https://github.com/nodejs/undici/issues/3895
+      for (const target of targets) {
+        // Do not use kRemoveClient here, as it will close the client,
+        // but the client cannot be closed in this state.
+        const idx = this[kClients].indexOf(target)
+        if (idx !== -1) {
+          this[kClients].splice(idx, 1)
+        }
+      }
+    })
   }
 
   [kGetDispatcher] () {
@@ -98959,15 +100029,25 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.configAuthentication = void 0;
+exports.configAuthentication = configAuthentication;
 const fs = __importStar(__nccwpck_require__(7147));
 const path = __importStar(__nccwpck_require__(1017));
 const core = __importStar(__nccwpck_require__(2186));
@@ -98980,7 +100060,6 @@ function configAuthentication(feedUrl, existingFileLocation = '', processRoot = 
     const tempNuGetConfig = path.resolve(processRoot, '../', 'nuget.config');
     writeFeedToFile(feedUrl, existingNuGetConfig, tempNuGetConfig);
 }
-exports.configAuthentication = configAuthentication;
 function isValidKey(key) {
     return /^[\w\-.]+$/i.test(key);
 }
@@ -98995,7 +100074,6 @@ function getExistingNugetConfig(processRoot) {
     return defaultConfigName;
 }
 function writeFeedToFile(feedUrl, existingFileLocation, tempFileLocation) {
-    var _a, _b;
     core.info(`dotnet-auth: Finding any source references in ${existingFileLocation}, writing a new temporary configuration file with credentials to ${tempFileLocation}`);
     const sourceKeys = [];
     let owner = core.getInput('owner');
@@ -99017,7 +100095,7 @@ function writeFeedToFile(feedUrl, existingFileLocation, tempFileLocation) {
         if (typeof json.configuration === 'undefined') {
             throw new Error(`The provided NuGet.config seems invalid.`);
         }
-        if ((_b = (_a = json.configuration) === null || _a === void 0 ? void 0 : _a.packageSources) === null || _b === void 0 ? void 0 : _b.add) {
+        if (json.configuration?.packageSources?.add) {
             const packageSources = json.configuration.packageSources.add;
             if (Array.isArray(packageSources)) {
                 packageSources.forEach(source => {
@@ -99147,22 +100225,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.restoreCache = void 0;
 const promises_1 = __nccwpck_require__(3977);
@@ -99172,9 +100251,9 @@ const core = __importStar(__nccwpck_require__(2186));
 const glob = __importStar(__nccwpck_require__(8090));
 const cache_utils_1 = __nccwpck_require__(1678);
 const constants_1 = __nccwpck_require__(9042);
-const restoreCache = (cacheDependencyPath) => __awaiter(void 0, void 0, void 0, function* () {
-    const lockFilePath = cacheDependencyPath || (yield findLockFile());
-    const fileHash = yield glob.hashFiles(lockFilePath);
+const restoreCache = async (cacheDependencyPath) => {
+    const lockFilePath = cacheDependencyPath || (await findLockFile());
+    const fileHash = await glob.hashFiles(lockFilePath);
     if (!fileHash) {
         throw new Error('Some specified paths were not resolved, unable to cache dependencies.');
     }
@@ -99182,8 +100261,8 @@ const restoreCache = (cacheDependencyPath) => __awaiter(void 0, void 0, void 0, 
     const primaryKey = `dotnet-cache-${platform}-${fileHash}`;
     core.debug(`primary key is ${primaryKey}`);
     core.saveState(constants_1.State.CachePrimaryKey, primaryKey);
-    const { 'global-packages': cachePath } = yield (0, cache_utils_1.getNuGetFolderPath)();
-    const cacheKey = yield cache.restoreCache([cachePath], primaryKey);
+    const { 'global-packages': cachePath } = await (0, cache_utils_1.getNuGetFolderPath)();
+    const cacheKey = await cache.restoreCache([cachePath], primaryKey);
     core.setOutput(constants_1.Outputs.CacheHit, Boolean(cacheKey));
     if (!cacheKey) {
         core.info('Dotnet cache is not found');
@@ -99191,17 +100270,17 @@ const restoreCache = (cacheDependencyPath) => __awaiter(void 0, void 0, void 0, 
     }
     core.saveState(constants_1.State.CacheMatchedKey, cacheKey);
     core.info(`Cache restored from key: ${cacheKey}`);
-});
+};
 exports.restoreCache = restoreCache;
-const findLockFile = () => __awaiter(void 0, void 0, void 0, function* () {
+const findLockFile = async () => {
     const workspace = process.env.GITHUB_WORKSPACE;
-    const rootContent = yield (0, promises_1.readdir)(workspace);
+    const rootContent = await (0, promises_1.readdir)(workspace);
     const lockFile = constants_1.lockFilePatterns.find(item => rootContent.includes(item));
     if (!lockFile) {
         throw new Error(`Dependencies lock file is not found in ${workspace}. Supported file patterns: ${constants_1.lockFilePatterns.toString()}`);
     }
     return (0, node_path_1.join)(workspace, lockFile);
-});
+};
 
 
 /***/ }),
@@ -99227,24 +100306,26 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isCacheFeatureAvailable = exports.getNuGetFolderPath = void 0;
+exports.getNuGetFolderPath = void 0;
+exports.isCacheFeatureAvailable = isCacheFeatureAvailable;
 const cache = __importStar(__nccwpck_require__(7799));
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
@@ -99274,8 +100355,8 @@ const constants_1 = __nccwpck_require__(9042);
  * }
  * ```
  */
-const getNuGetFolderPath = () => __awaiter(void 0, void 0, void 0, function* () {
-    const { stdout, stderr, exitCode } = yield exec.getExecOutput(constants_1.cliCommand, undefined, { ignoreReturnCode: true, silent: true });
+const getNuGetFolderPath = async () => {
+    const { stdout, stderr, exitCode } = await exec.getExecOutput(constants_1.cliCommand, undefined, { ignoreReturnCode: true, silent: true });
     if (exitCode) {
         throw new Error(!stderr.trim()
             ? `The '${constants_1.cliCommand}' command failed with exit code: ${exitCode}`
@@ -99296,7 +100377,7 @@ const getNuGetFolderPath = () => __awaiter(void 0, void 0, void 0, function* () 
         }
     }
     return result;
-});
+};
 exports.getNuGetFolderPath = getNuGetFolderPath;
 function isCacheFeatureAvailable() {
     if (cache.isFeatureAvailable()) {
@@ -99309,7 +100390,6 @@ function isCacheFeatureAvailable() {
     core.warning('The runner was not able to contact the cache service. Caching will be skipped');
     return false;
 }
-exports.isCacheFeatureAvailable = isCacheFeatureAvailable;
 /**
  * Returns this action runs on GitHub Enterprise Server or not.
  */
@@ -99374,22 +100454,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -99408,29 +100489,28 @@ const utils_1 = __nccwpck_require__(1314);
 const QUALITY_INPUT_MINIMAL_MAJOR_TAG = 6;
 const LATEST_PATCH_SYNTAX_MINIMAL_MAJOR_TAG = 5;
 class DotnetVersionResolver {
+    inputVersion;
+    resolvedArgument;
     constructor(version) {
         this.inputVersion = version.trim();
         this.resolvedArgument = { type: '', value: '', qualityFlag: false };
     }
-    resolveVersionInput() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!semver_1.default.validRange(this.inputVersion) && !this.isLatestPatchSyntax()) {
-                throw new Error(`The 'dotnet-version' was supplied in invalid format: ${this.inputVersion}! Supported syntax: A.B.C, A.B, A.B.x, A, A.x, A.B.Cxx`);
-            }
-            if (semver_1.default.valid(this.inputVersion)) {
-                this.createVersionArgument();
-            }
-            else {
-                yield this.createChannelArgument();
-            }
-        });
+    async resolveVersionInput() {
+        if (!semver_1.default.validRange(this.inputVersion) && !this.isLatestPatchSyntax()) {
+            throw new Error(`The 'dotnet-version' was supplied in invalid format: ${this.inputVersion}! Supported syntax: A.B.C, A.B, A.B.x, A, A.x, A.B.Cxx`);
+        }
+        if (semver_1.default.valid(this.inputVersion)) {
+            this.createVersionArgument();
+        }
+        else {
+            await this.createChannelArgument();
+        }
     }
     isNumericTag(versionTag) {
         return /^\d+$/.test(versionTag);
     }
     isLatestPatchSyntax() {
-        var _a, _b;
-        const majorTag = (_b = (_a = this.inputVersion.match(/^(?<majorTag>\d+)\.\d+\.\d{1}x{2}$/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.majorTag;
+        const majorTag = this.inputVersion.match(/^(?<majorTag>\d+)\.\d+\.\d{1}x{2}$/)?.groups?.majorTag;
         if (majorTag &&
             parseInt(majorTag) < LATEST_PATCH_SYNTAX_MINIMAL_MAJOR_TAG) {
             throw new Error(`The 'dotnet-version' was supplied in invalid format: ${this.inputVersion}! The A.B.Cxx syntax is available since the .NET 5.0 release.`);
@@ -99441,70 +100521,65 @@ class DotnetVersionResolver {
         this.resolvedArgument.type = 'version';
         this.resolvedArgument.value = this.inputVersion;
     }
-    createChannelArgument() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.resolvedArgument.type = 'channel';
-            const [major, minor] = this.inputVersion.split('.');
-            if (this.isLatestPatchSyntax()) {
-                this.resolvedArgument.value = this.inputVersion;
-            }
-            else if (this.isNumericTag(major) && this.isNumericTag(minor)) {
-                this.resolvedArgument.value = `${major}.${minor}`;
-            }
-            else if (this.isNumericTag(major)) {
-                this.resolvedArgument.value = yield this.getLatestByMajorTag(major);
-            }
-            else {
-                // If "dotnet-version" is specified as *, x or X resolve latest version of .NET explicitly from LTS channel. The version argument will default to "latest" by install-dotnet script.
-                this.resolvedArgument.value = 'LTS';
-            }
-            this.resolvedArgument.qualityFlag =
-                parseInt(major) >= QUALITY_INPUT_MINIMAL_MAJOR_TAG ? true : false;
-        });
+    async createChannelArgument() {
+        this.resolvedArgument.type = 'channel';
+        const [major, minor] = this.inputVersion.split('.');
+        if (this.isLatestPatchSyntax()) {
+            this.resolvedArgument.value = this.inputVersion;
+        }
+        else if (this.isNumericTag(major) && this.isNumericTag(minor)) {
+            this.resolvedArgument.value = `${major}.${minor}`;
+        }
+        else if (this.isNumericTag(major)) {
+            this.resolvedArgument.value = await this.getLatestByMajorTag(major);
+        }
+        else {
+            // If "dotnet-version" is specified as *, x or X resolve latest version of .NET explicitly from LTS channel. The version argument will default to "latest" by install-dotnet script.
+            this.resolvedArgument.value = 'LTS';
+        }
+        this.resolvedArgument.qualityFlag =
+            parseInt(major) >= QUALITY_INPUT_MINIMAL_MAJOR_TAG ? true : false;
     }
-    createDotnetVersion() {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.resolveVersionInput();
-            if (!this.resolvedArgument.type) {
-                return this.resolvedArgument;
-            }
-            if (utils_1.IS_WINDOWS) {
-                this.resolvedArgument.type =
-                    this.resolvedArgument.type === 'channel' ? '-Channel' : '-Version';
-            }
-            else {
-                this.resolvedArgument.type =
-                    this.resolvedArgument.type === 'channel' ? '--channel' : '--version';
-            }
+    async createDotnetVersion() {
+        await this.resolveVersionInput();
+        if (!this.resolvedArgument.type) {
             return this.resolvedArgument;
-        });
+        }
+        if (utils_1.IS_WINDOWS) {
+            this.resolvedArgument.type =
+                this.resolvedArgument.type === 'channel' ? '-Channel' : '-Version';
+        }
+        else {
+            this.resolvedArgument.type =
+                this.resolvedArgument.type === 'channel' ? '--channel' : '--version';
+        }
+        return this.resolvedArgument;
     }
-    getLatestByMajorTag(majorTag) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const httpClient = new hc.HttpClient('actions/setup-dotnet', [], {
-                allowRetries: true,
-                maxRetries: 3
-            });
-            const response = yield httpClient.getJson(DotnetVersionResolver.DotnetCoreIndexUrl);
-            const result = response.result || {};
-            const releasesInfo = result['releases-index'];
-            const releaseInfo = releasesInfo.find(info => {
-                const sdkParts = info['channel-version'].split('.');
-                return sdkParts[0] === majorTag;
-            });
-            if (!releaseInfo) {
-                throw new Error(`Could not find info for version with major tag: "${majorTag}" at ${DotnetVersionResolver.DotnetCoreIndexUrl}`);
-            }
-            return releaseInfo['channel-version'];
+    async getLatestByMajorTag(majorTag) {
+        const httpClient = new hc.HttpClient('actions/setup-dotnet', [], {
+            allowRetries: true,
+            maxRetries: 3
         });
+        const response = await httpClient.getJson(DotnetVersionResolver.DotnetCoreIndexUrl);
+        const result = response.result || {};
+        const releasesInfo = result['releases-index'];
+        const releaseInfo = releasesInfo.find(info => {
+            const sdkParts = info['channel-version'].split('.');
+            return sdkParts[0] === majorTag;
+        });
+        if (!releaseInfo) {
+            throw new Error(`Could not find info for version with major tag: "${majorTag}" at ${DotnetVersionResolver.DotnetCoreIndexUrl}`);
+        }
+        return releaseInfo['channel-version'];
     }
+    static DotnetCoreIndexUrl = 'https://builds.dotnet.microsoft.com/dotnet/release-metadata/releases-index.json';
 }
 exports.DotnetVersionResolver = DotnetVersionResolver;
-DotnetVersionResolver.DotnetCoreIndexUrl = 'https://builds.dotnet.microsoft.com/dotnet/release-metadata/releases-index.json';
 class DotnetInstallScript {
+    scriptName = utils_1.IS_WINDOWS ? 'install-dotnet.ps1' : 'install-dotnet.sh';
+    escapedScript;
+    scriptArguments = [];
     constructor() {
-        this.scriptName = utils_1.IS_WINDOWS ? 'install-dotnet.ps1' : 'install-dotnet.sh';
-        this.scriptArguments = [];
         this.escapedScript = path_1.default
             .join(__dirname, '..', '..', 'externals', this.scriptName)
             .replace(/'/g, "''");
@@ -99536,13 +100611,11 @@ class DotnetInstallScript {
     setupScriptBash() {
         (0, fs_1.chmodSync)(this.escapedScript, '777');
     }
-    getScriptPath() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (utils_1.IS_WINDOWS) {
-                return (yield io.which('pwsh', false)) || io.which('powershell', true);
-            }
-            return io.which(this.escapedScript, true);
-        });
+    async getScriptPath() {
+        if (utils_1.IS_WINDOWS) {
+            return (await io.which('pwsh', false)) || io.which('powershell', true);
+        }
+        return io.which(this.escapedScript, true);
     }
     useArguments(...args) {
         this.scriptArguments.push(...args);
@@ -99561,18 +100634,24 @@ class DotnetInstallScript {
         }
         return this;
     }
-    execute() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const getExecOutputOptions = {
-                ignoreReturnCode: true,
-                env: process.env
-            };
-            return exec.getExecOutput(`"${yield this.getScriptPath()}"`, this.scriptArguments, getExecOutputOptions);
-        });
+    async execute() {
+        const getExecOutputOptions = {
+            ignoreReturnCode: true,
+            env: process.env
+        };
+        return exec.getExecOutput(`"${await this.getScriptPath()}"`, this.scriptArguments, getExecOutputOptions);
     }
 }
 exports.DotnetInstallScript = DotnetInstallScript;
 class DotnetInstallDir {
+    static default = {
+        linux: '/usr/share/dotnet',
+        mac: path_1.default.join(process.env['HOME'] + '', '.dotnet'),
+        windows: path_1.default.join(process.env['PROGRAMFILES'] + '', 'dotnet')
+    };
+    static dirPath = process.env['DOTNET_INSTALL_DIR']
+        ? DotnetInstallDir.convertInstallPathToAbsolute(process.env['DOTNET_INSTALL_DIR'])
+        : DotnetInstallDir.default[utils_1.PLATFORM];
     static convertInstallPathToAbsolute(installDir) {
         if (path_1.default.isAbsolute(installDir))
             return path_1.default.normalize(installDir);
@@ -99590,57 +100669,52 @@ class DotnetInstallDir {
     }
 }
 exports.DotnetInstallDir = DotnetInstallDir;
-DotnetInstallDir.default = {
-    linux: '/usr/share/dotnet',
-    mac: path_1.default.join(process.env['HOME'] + '', '.dotnet'),
-    windows: path_1.default.join(process.env['PROGRAMFILES'] + '', 'dotnet')
-};
-DotnetInstallDir.dirPath = process.env['DOTNET_INSTALL_DIR']
-    ? DotnetInstallDir.convertInstallPathToAbsolute(process.env['DOTNET_INSTALL_DIR'])
-    : DotnetInstallDir.default[utils_1.PLATFORM];
 class DotnetCoreInstaller {
+    version;
+    quality;
+    static {
+        DotnetInstallDir.setEnvironmentVariable();
+    }
     constructor(version, quality) {
         this.version = version;
         this.quality = quality;
     }
-    installDotnet() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const versionResolver = new DotnetVersionResolver(this.version);
-            const dotnetVersion = yield versionResolver.createDotnetVersion();
+    async installDotnet() {
+        const versionResolver = new DotnetVersionResolver(this.version);
+        const dotnetVersion = await versionResolver.createDotnetVersion();
+        /**
+         * Install dotnet runitme first in order to get
+         * the latest stable version of dotnet CLI
+         */
+        const runtimeInstallOutput = await new DotnetInstallScript()
+            // If dotnet CLI is already installed - avoid overwriting it
+            .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
+            // Install only runtime + CLI
+            .useArguments(utils_1.IS_WINDOWS ? '-Runtime' : '--runtime', 'dotnet')
+            // Use latest stable version
+            .useArguments(utils_1.IS_WINDOWS ? '-Channel' : '--channel', 'LTS')
+            .execute();
+        if (runtimeInstallOutput.exitCode) {
             /**
-             * Install dotnet runitme first in order to get
-             * the latest stable version of dotnet CLI
+             * dotnetInstallScript will install CLI and runtime even if previous script haven't succeded,
+             * so at this point it's too early to throw an error
              */
-            const runtimeInstallOutput = yield new DotnetInstallScript()
-                // If dotnet CLI is already installed - avoid overwriting it
-                .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
-                // Install only runtime + CLI
-                .useArguments(utils_1.IS_WINDOWS ? '-Runtime' : '--runtime', 'dotnet')
-                // Use latest stable version
-                .useArguments(utils_1.IS_WINDOWS ? '-Channel' : '--channel', 'LTS')
-                .execute();
-            if (runtimeInstallOutput.exitCode) {
-                /**
-                 * dotnetInstallScript will install CLI and runtime even if previous script haven't succeded,
-                 * so at this point it's too early to throw an error
-                 */
-                core.warning(`Failed to install dotnet runtime + cli, exit code: ${runtimeInstallOutput.exitCode}. ${runtimeInstallOutput.stderr}`);
-            }
-            /**
-             * Install dotnet over the latest version of
-             * dotnet CLI
-             */
-            const dotnetInstallOutput = yield new DotnetInstallScript()
-                // Don't overwrite CLI because it should be already installed
-                .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
-                // Use version provided by user
-                .useVersion(dotnetVersion, this.quality)
-                .execute();
-            if (dotnetInstallOutput.exitCode) {
-                throw new Error(`Failed to install dotnet, exit code: ${dotnetInstallOutput.exitCode}. ${dotnetInstallOutput.stderr}`);
-            }
-            return this.parseInstalledVersion(dotnetInstallOutput.stdout);
-        });
+            core.warning(`Failed to install dotnet runtime + cli, exit code: ${runtimeInstallOutput.exitCode}. ${runtimeInstallOutput.stderr}`);
+        }
+        /**
+         * Install dotnet over the latest version of
+         * dotnet CLI
+         */
+        const dotnetInstallOutput = await new DotnetInstallScript()
+            // Don't overwrite CLI because it should be already installed
+            .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
+            // Use version provided by user
+            .useVersion(dotnetVersion, this.quality)
+            .execute();
+        if (dotnetInstallOutput.exitCode) {
+            throw new Error(`Failed to install dotnet, exit code: ${dotnetInstallOutput.exitCode}. ${dotnetInstallOutput.stderr}`);
+        }
+        return this.parseInstalledVersion(dotnetInstallOutput.stdout);
     }
     parseInstalledVersion(stdout) {
         const regex = /(?<version>\d+\.\d+\.\d+[a-z0-9._-]*)/gm;
@@ -99653,9 +100727,6 @@ class DotnetCoreInstaller {
     }
 }
 exports.DotnetCoreInstaller = DotnetCoreInstaller;
-(() => {
-    DotnetInstallDir.setEnvironmentVariable();
-})();
 
 
 /***/ }),
@@ -99681,27 +100752,28 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
 const installer_1 = __nccwpck_require__(2574);
 const fs = __importStar(__nccwpck_require__(7147));
@@ -99719,72 +100791,69 @@ const qualityOptions = [
     'preview',
     'ga'
 ];
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            //
-            // dotnet-version is optional, but needs to be provided for most use cases.
-            // If supplied, install / use from the tool cache.
-            // global-version-file may be specified to point to a specific global.json
-            // and will be used to install an additional version.
-            // If not supplied, look for version in ./global.json.
-            // If a valid version still can't be identified, nothing will be installed.
-            // Proxy, auth, (etc) are still set up, even if no version is identified
-            //
-            const versions = core.getMultilineInput('dotnet-version');
-            const installedDotnetVersions = [];
-            const globalJsonFileInput = core.getInput('global-json-file');
-            if (globalJsonFileInput) {
-                const globalJsonPath = path_1.default.resolve(process.cwd(), globalJsonFileInput);
-                if (!fs.existsSync(globalJsonPath)) {
-                    throw new Error(`The specified global.json file '${globalJsonFileInput}' does not exist`);
-                }
+async function run() {
+    try {
+        //
+        // dotnet-version is optional, but needs to be provided for most use cases.
+        // If supplied, install / use from the tool cache.
+        // global-version-file may be specified to point to a specific global.json
+        // and will be used to install an additional version.
+        // If not supplied, look for version in ./global.json.
+        // If a valid version still can't be identified, nothing will be installed.
+        // Proxy, auth, (etc) are still set up, even if no version is identified
+        //
+        const versions = core.getMultilineInput('dotnet-version');
+        const installedDotnetVersions = [];
+        const globalJsonFileInput = core.getInput('global-json-file');
+        if (globalJsonFileInput) {
+            const globalJsonPath = path_1.default.resolve(process.cwd(), globalJsonFileInput);
+            if (!fs.existsSync(globalJsonPath)) {
+                throw new Error(`The specified global.json file '${globalJsonFileInput}' does not exist`);
+            }
+            versions.push(getVersionFromGlobalJson(globalJsonPath));
+        }
+        if (!versions.length) {
+            // Try to fall back to global.json
+            core.debug('No version found, trying to find version from global.json');
+            const globalJsonPath = path_1.default.join(process.cwd(), 'global.json');
+            if (fs.existsSync(globalJsonPath)) {
                 versions.push(getVersionFromGlobalJson(globalJsonPath));
             }
-            if (!versions.length) {
-                // Try to fall back to global.json
-                core.debug('No version found, trying to find version from global.json');
-                const globalJsonPath = path_1.default.join(process.cwd(), 'global.json');
-                if (fs.existsSync(globalJsonPath)) {
-                    versions.push(getVersionFromGlobalJson(globalJsonPath));
-                }
-                else {
-                    core.info(`The global.json wasn't found in the root directory. No .NET version will be installed.`);
-                }
+            else {
+                core.info(`The global.json wasn't found in the root directory. No .NET version will be installed.`);
             }
-            if (versions.length) {
-                const quality = core.getInput('dotnet-quality');
-                if (quality && !qualityOptions.includes(quality)) {
-                    throw new Error(`Value '${quality}' is not supported for the 'dotnet-quality' option. Supported values are: daily, signed, validated, preview, ga.`);
-                }
-                let dotnetInstaller;
-                const uniqueVersions = new Set(versions);
-                for (const version of uniqueVersions) {
-                    dotnetInstaller = new installer_1.DotnetCoreInstaller(version, quality);
-                    const installedVersion = yield dotnetInstaller.installDotnet();
-                    installedDotnetVersions.push(installedVersion);
-                }
-                installer_1.DotnetInstallDir.addToPath();
-            }
-            const sourceUrl = core.getInput('source-url');
-            const configFile = core.getInput('config-file');
-            if (sourceUrl) {
-                auth.configAuthentication(sourceUrl, configFile);
-            }
-            outputInstalledVersion(installedDotnetVersions, globalJsonFileInput);
-            if (core.getBooleanInput('cache') && (0, cache_utils_1.isCacheFeatureAvailable)()) {
-                const cacheDependencyPath = core.getInput('cache-dependency-path');
-                yield (0, cache_restore_1.restoreCache)(cacheDependencyPath);
-            }
-            const matchersPath = path_1.default.join(__dirname, '..', '..', '.github');
-            core.info(`##[add-matcher]${path_1.default.join(matchersPath, 'csc.json')}`);
         }
-        catch (error) {
-            core.setFailed(error.message);
+        if (versions.length) {
+            const quality = core.getInput('dotnet-quality');
+            if (quality && !qualityOptions.includes(quality)) {
+                throw new Error(`Value '${quality}' is not supported for the 'dotnet-quality' option. Supported values are: daily, signed, validated, preview, ga.`);
+            }
+            let dotnetInstaller;
+            const uniqueVersions = new Set(versions);
+            for (const version of uniqueVersions) {
+                dotnetInstaller = new installer_1.DotnetCoreInstaller(version, quality);
+                const installedVersion = await dotnetInstaller.installDotnet();
+                installedDotnetVersions.push(installedVersion);
+            }
+            installer_1.DotnetInstallDir.addToPath();
         }
-    });
+        const sourceUrl = core.getInput('source-url');
+        const configFile = core.getInput('config-file');
+        if (sourceUrl) {
+            auth.configAuthentication(sourceUrl, configFile);
+        }
+        outputInstalledVersion(installedDotnetVersions, globalJsonFileInput);
+        if (core.getBooleanInput('cache') && (0, cache_utils_1.isCacheFeatureAvailable)()) {
+            const cacheDependencyPath = core.getInput('cache-dependency-path');
+            await (0, cache_restore_1.restoreCache)(cacheDependencyPath);
+        }
+        const matchersPath = path_1.default.join(__dirname, '..', '..', '.github');
+        core.info(`##[add-matcher]${path_1.default.join(matchersPath, 'csc.json')}`);
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
 }
-exports.run = run;
 function getVersionFromGlobalJson(globalJsonPath) {
     let version = '';
     const globalJson = json5_1.default.parse(

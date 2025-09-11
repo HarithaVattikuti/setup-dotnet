@@ -21,7 +21,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -43,7 +43,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -65,7 +65,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -93,7 +93,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -121,7 +121,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -145,7 +145,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -169,7 +169,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -189,7 +189,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -209,7 +209,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -232,7 +232,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -257,7 +257,7 @@ jobs:
           [ubuntu-latest, windows-latest, macos-13, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -278,7 +278,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -301,7 +301,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -325,7 +325,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -350,7 +350,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -376,7 +376,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -401,7 +401,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -426,7 +426,7 @@ jobs:
         operating-system: [ubuntu-22.04, windows-latest, macos-13]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -451,7 +451,7 @@ jobs:
         operating-system: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -477,7 +477,7 @@ jobs:
           [ubuntu-latest, windows-latest, macos-13, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -501,7 +501,7 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -532,7 +532,7 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -563,7 +563,7 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -592,7 +592,7 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -620,7 +620,7 @@ jobs:
           [ubuntu-latest, windows-latest, macos-13, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -647,7 +647,7 @@ jobs:
           [ubuntu-latest, windows-latest, macos-13, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -682,7 +682,7 @@ jobs:
       http_proxy: http://squid-proxy:3128
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install Powershell
         run: |
           apt-get update
@@ -714,7 +714,7 @@ jobs:
       no_proxy: github.com,download.visualstudio.microsoft.com,api.nuget.org,builds.dotnet.microsoft.com,ci.dot.net
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -736,7 +736,7 @@ jobs:
       no_proxy: github.com,download.visualstudio.microsoft.com,api.nuget.org,builds.dotnet.microsoft.com,ci.dot.net
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -761,7 +761,7 @@ jobs:
         higher-version: ['7.0.203']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
@@ -790,7 +790,7 @@ jobs:
         higher-version: ['9.0.301']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Clear toolcache
         shell: pwsh
         run: __tests__/clear-toolcache.ps1 ${{ runner.os }}
