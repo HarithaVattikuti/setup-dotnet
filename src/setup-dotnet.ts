@@ -46,8 +46,7 @@ async function installWorkloads(workloads: string[]): Promise<void> {
 
     core.info('Workloads installed successfully');
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Error installing workloads: ${errorMessage}`);
   }
 }
