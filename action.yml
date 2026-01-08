@@ -24,6 +24,9 @@ inputs:
   cache-dependency-path:
     description: 'Used to specify the path to a dependency file: packages.lock.json. Supports wildcards or a list of file names for caching multiple dependencies.'
     required: false
+  workloads:
+    description: 'Optional list of workloads to install after SDK installation (e.g., maui, aspire, wasm-tools). The action will run "dotnet workload update" followed by "dotnet workload install" for all specified workloads.'
+    required: false
 outputs:
   cache-hit:
     description: 'A boolean value to indicate if a cache was hit.'

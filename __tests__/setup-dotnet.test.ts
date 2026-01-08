@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import * as exec from '@actions/exec';
 import fs from 'fs';
 import semver from 'semver';
 import * as auth from '../src/authutil';
@@ -40,9 +41,13 @@ describe('setup-dotnet tests', () => {
   describe('run() tests', () => {
     beforeEach(() => {
       DotnetInstallDir.addToPath = jest.fn();
-      getMultilineInputSpy.mockImplementation(input => inputs[input as string]);
-      getInputSpy.mockImplementation(input => inputs[input as string]);
-      getBooleanInputSpy.mockImplementation(input => inputs[input as string]);
+      getMultilineInputSpy.mockImplementation(
+        input => inputs[input as string] || []
+      );
+      getInputSpy.mockImplementation(input => inputs[input as string] || '');
+      getBooleanInputSpy.mockImplementation(
+        input => inputs[input as string] || false
+      );
     });
 
     afterEach(() => {
@@ -123,7 +128,7 @@ describe('setup-dotnet tests', () => {
       await setup.run();
       expect(configAuthenticationSpy).toHaveBeenCalledWith(
         inputs['source-url'],
-        undefined
+        ''
       );
     });
 
@@ -220,6 +225,123 @@ describe('setup-dotnet tests', () => {
 
       await setup.run();
       expect(restoreCacheSpy).not.toHaveBeenCalled();
+    });
+
+    it('should install workloads when workloads input is provided with dotnet-version', async () => {
+      inputs['dotnet-version'] = ['8.0'];
+      inputs['workloads'] = ['maui', 'aspire'];
+      inputs['dotnet-quality'] = '';
+
+      installDotnetSpy.mockImplementation(() => Promise.resolve('8.0.100'));
+
+      const getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
+      getExecOutputSpy.mockResolvedValue({
+        exitCode: 0,
+        stdout: '',
+        stderr: ''
+      });
+
+      await setup.run();
+
+      expect(getExecOutputSpy).toHaveBeenCalledWith('dotnet', [
+        'workload',
+        'update'
+      ]);
+      expect(getExecOutputSpy).toHaveBeenCalledWith('dotnet', [
+        'workload',
+        'install',
+        'maui',
+        'aspire'
+      ]);
+      expect(infoSpy).toHaveBeenCalledWith('Updating workload manifests...');
+      expect(infoSpy).toHaveBeenCalledWith(
+        'Installing workloads: maui, aspire'
+      );
+      expect(infoSpy).toHaveBeenCalledWith('Workloads installed successfully');
+    });
+
+    it('should not install workloads when workloads input is provided but dotnet-version is not', async () => {
+      inputs['dotnet-version'] = [];
+      inputs['workloads'] = ['maui', 'aspire'];
+
+      const getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
+
+      await setup.run();
+
+      expect(getExecOutputSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not install workloads when workloads input is empty', async () => {
+      inputs['dotnet-version'] = ['8.0'];
+      inputs['workloads'] = [];
+      inputs['dotnet-quality'] = '';
+
+      installDotnetSpy.mockImplementation(() => Promise.resolve('8.0.100'));
+
+      const getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
+
+      await setup.run();
+
+      expect(getExecOutputSpy).not.toHaveBeenCalled();
+    });
+
+    it('should warn when workload update fails but continue with installation', async () => {
+      inputs['dotnet-version'] = ['8.0'];
+      inputs['workloads'] = ['maui'];
+      inputs['dotnet-quality'] = '';
+
+      installDotnetSpy.mockImplementation(() => Promise.resolve('8.0.100'));
+
+      const getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
+      getExecOutputSpy
+        .mockResolvedValueOnce({
+          exitCode: 1,
+          stdout: '',
+          stderr: 'Update failed'
+        })
+        .mockResolvedValueOnce({
+          exitCode: 0,
+          stdout: '',
+          stderr: ''
+        });
+
+      await setup.run();
+
+      expect(warningSpy).toHaveBeenCalledWith(
+        'Failed to update workload manifests: Update failed'
+      );
+      expect(getExecOutputSpy).toHaveBeenCalledWith('dotnet', [
+        'workload',
+        'install',
+        'maui'
+      ]);
+    });
+
+    it('should fail when workload installation fails', async () => {
+      inputs['dotnet-version'] = ['8.0'];
+      inputs['workloads'] = ['maui'];
+      inputs['dotnet-quality'] = '';
+
+      installDotnetSpy.mockImplementation(() => Promise.resolve('8.0.100'));
+
+      const getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
+      getExecOutputSpy
+        .mockResolvedValueOnce({
+          exitCode: 0,
+          stdout: '',
+          stderr: ''
+        })
+        .mockResolvedValueOnce({
+          exitCode: 1,
+          stdout: 'Install failed',
+          stderr: 'Installation error'
+        });
+
+      await setup.run();
+
+      expect(setFailedSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error installing workloads')
+      );
     });
   });
 });

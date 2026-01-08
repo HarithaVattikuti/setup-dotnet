@@ -100775,6 +100775,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
 const installer_1 = __nccwpck_require__(2574);
 const fs = __importStar(__nccwpck_require__(7147));
 const path_1 = __importDefault(__nccwpck_require__(1017));
@@ -100791,6 +100792,28 @@ const qualityOptions = [
     'preview',
     'ga'
 ];
+async function installWorkloads(workloads) {
+    try {
+        core.info('Updating workload manifests...');
+        const updateResult = await exec.getExecOutput('dotnet', [
+            'workload',
+            'update'
+        ]);
+        if (updateResult.exitCode !== 0) {
+            core.warning(`Failed to update workload manifests: ${updateResult.stderr}`);
+        }
+        core.info(`Installing workloads: ${workloads.join(', ')}`);
+        const installArgs = ['workload', 'install', ...workloads];
+        const installResult = await exec.getExecOutput('dotnet', installArgs);
+        if (installResult.exitCode !== 0) {
+            throw new Error(`Failed to install workloads: ${installResult.stderr || installResult.stdout}`);
+        }
+        core.info('Workloads installed successfully');
+    }
+    catch (error) {
+        throw new Error(`Error installing workloads: ${error.message}`);
+    }
+}
 async function run() {
     try {
         //
@@ -100836,6 +100859,11 @@ async function run() {
                 installedDotnetVersions.push(installedVersion);
             }
             installer_1.DotnetInstallDir.addToPath();
+        }
+        // Install workloads if specified
+        const workloads = core.getMultilineInput('workloads');
+        if (workloads.length && versions.length) {
+            await installWorkloads(workloads);
         }
         const sourceUrl = core.getInput('source-url');
         const configFile = core.getInput('config-file');
