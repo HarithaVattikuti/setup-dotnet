@@ -832,7 +832,7 @@ jobs:
       - name: Verify wasm-tools workload is installed
         shell: pwsh
         run: |
-          $output = dotnet workload list
+          $output = dotnet workload list | Out-String
           Write-Host "Installed workloads:"
           Write-Host $output
           if ($output -notmatch "wasm-tools") {
