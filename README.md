@@ -89,6 +89,25 @@ steps:
   working-directory: csharp
 ```
 
+## Using the `workloads` input
+The .NET SDK ships with support for workloads (WASM, MAUI, Aspire, and potentially more in the future). The `workloads` input allows you to install additional workloads after the SDK installation. This is an opt-in feature that helps you set up the full .NET environment as expected.
+
+The action will run `dotnet workload update` to ensure manifests are updated, and then `dotnet workload install` with all specified workloads in a single command for optimal performance.
+
+```yml
+steps:
+- uses: actions/checkout@v5
+- uses: actions/setup-dotnet@v5
+  with:
+    dotnet-version: 8.0.x
+    workloads: |
+      maui
+      aspire
+- run: dotnet build <my project>
+```
+
+> **Note**: The `workloads` input is optional and only installs workloads when a .NET SDK version is also being installed. You can specify multiple workloads, one per line.
+
 ## Caching NuGet Packages
 The action has a built-in functionality for caching and restoring dependencies. It uses [toolkit/cache](https://github.com/actions/toolkit/tree/main/packages/cache) under the hood for caching global packages data but requires less configuration settings. The `cache` input is optional, and caching is turned off by default.
 

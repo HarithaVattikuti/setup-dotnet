@@ -100811,7 +100811,8 @@ async function installWorkloads(workloads) {
         core.info('Workloads installed successfully');
     }
     catch (error) {
-        throw new Error(`Error installing workloads: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Error installing workloads: ${errorMessage}`);
     }
 }
 async function run() {
