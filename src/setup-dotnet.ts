@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import * as exec from '@actions/exec';
 import {DotnetCoreInstaller, DotnetInstallDir} from './installer';
 import * as fs from 'fs';
 import path from 'path';
@@ -18,6 +19,37 @@ const qualityOptions = [
 ] as const;
 
 export type QualityOptions = (typeof qualityOptions)[number];
+
+async function installWorkloads(workloads: string[]): Promise<void> {
+  try {
+    core.info('Updating workload manifests...');
+    const updateResult = await exec.getExecOutput('dotnet', [
+      'workload',
+      'update'
+    ]);
+
+    if (updateResult.exitCode !== 0) {
+      core.warning(
+        `Failed to update workload manifests: ${updateResult.stderr}`
+      );
+    }
+
+    core.info(`Installing workloads: ${workloads.join(', ')}`);
+    const installArgs = ['workload', 'install', ...workloads];
+    const installResult = await exec.getExecOutput('dotnet', installArgs);
+
+    if (installResult.exitCode !== 0) {
+      throw new Error(
+        `Failed to install workloads: ${installResult.stderr || installResult.stdout}`
+      );
+    }
+
+    core.info('Workloads installed successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Error installing workloads: ${errorMessage}`);
+  }
+}
 
 export async function run() {
   try {
@@ -74,6 +106,12 @@ export async function run() {
         installedDotnetVersions.push(installedVersion);
       }
       DotnetInstallDir.addToPath();
+    }
+
+    // Install workloads if specified
+    const workloads = core.getMultilineInput('workloads');
+    if (workloads.length && versions.length) {
+      await installWorkloads(workloads);
     }
 
     const sourceUrl: string = core.getInput('source-url');
