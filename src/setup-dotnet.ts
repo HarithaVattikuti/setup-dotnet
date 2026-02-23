@@ -101,10 +101,13 @@ export async function run() {
         architecture &&
         normalizeArch(architecture) !== normalizeArch(os.arch())
       ) {
-        process.env['DOTNET_INSTALL_DIR']= path.join(DotnetInstallDir.dirPath, architecture);
-      }  
+        process.env['DOTNET_INSTALL_DIR'] = path.join(
+          DotnetInstallDir.dirPath,
+          architecture
+        );
+      }
       DotnetInstallDir.addToPath();
-      
+
       const workloadsInput = core.getInput('workloads');
       if (workloadsInput) {
         const workloads = workloadsInput

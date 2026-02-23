@@ -54938,18 +54938,26 @@ class DotnetCoreInstaller {
     async installDotnet() {
         const versionResolver = new DotnetVersionResolver(this.version);
         const dotnetVersion = await versionResolver.createDotnetVersion();
+        const architectureArguments = this.architecture &&
+            normalizeArch(this.architecture) !== normalizeArch(os_1.default.arch())
+            ? [
+                utils_1.IS_WINDOWS ? '-InstallDir' : '--install-dir',
+                path_1.default.join(DotnetInstallDir.dirPath, this.architecture)
+            ]
+            : [];
         /**
          * Install dotnet runitme first in order to get
          * the latest stable version of dotnet CLI
          */
         const runtimeInstallOutput = await new DotnetInstallScript()
+            .useArchitecture(this.architecture)
             // If dotnet CLI is already installed - avoid overwriting it
             .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
             // Install only runtime + CLI
             .useArguments(utils_1.IS_WINDOWS ? '-Runtime' : '--runtime', 'dotnet')
             // Use latest stable version
             .useArguments(utils_1.IS_WINDOWS ? '-Channel' : '--channel', 'LTS')
-            .useArchitecture(this.architecture)
+            .useArguments(...architectureArguments)
             .execute();
         if (runtimeInstallOutput.exitCode) {
             /**
@@ -54963,11 +54971,12 @@ class DotnetCoreInstaller {
          * dotnet CLI
          */
         const dotnetInstallOutput = await new DotnetInstallScript()
+            .useArchitecture(this.architecture)
             // Don't overwrite CLI because it should be already installed
             .useArguments(utils_1.IS_WINDOWS ? '-SkipNonVersionedFiles' : '--skip-non-versioned-files')
             // Use version provided by user
             .useVersion(dotnetVersion, this.quality)
-            .useArchitecture(this.architecture)
+            .useArguments(...architectureArguments)
             .execute();
         if (dotnetInstallOutput.exitCode) {
             throw new Error(`Failed to install dotnet, exit code: ${dotnetInstallOutput.exitCode}. ${dotnetInstallOutput.stderr}`);
