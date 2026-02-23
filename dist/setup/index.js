@@ -54941,8 +54941,12 @@ class DotnetCoreInstaller {
         const architectureArguments = this.architecture &&
             normalizeArch(this.architecture) !== normalizeArch(os_1.default.arch())
             ? [
-                utils_1.IS_WINDOWS ? '-InstallDir' : '--install-dir',
-                path_1.default.join(DotnetInstallDir.dirPath, this.architecture)
+                utils_1.IS_WINDOWS
+                    ? '-InstallDir'
+                    : '--install-dir',
+                utils_1.IS_WINDOWS
+                    ? `"${path_1.default.join(DotnetInstallDir.dirPath, this.architecture)}"`
+                    : path_1.default.join(DotnetInstallDir.dirPath, this.architecture)
             ]
             : [];
         /**

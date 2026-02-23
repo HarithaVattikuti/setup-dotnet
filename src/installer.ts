@@ -257,7 +257,7 @@ export abstract class DotnetInstallDir {
 
   public static setEnvironmentVariable() {
     process.env['DOTNET_INSTALL_DIR'] = DotnetInstallDir.dirPath;
-    }
+  }
 }
 
 export function normalizeArch(arch: string): string {
@@ -266,8 +266,8 @@ export function normalizeArch(arch: string): string {
       return 'x64';
     default:
       return arch.toLowerCase();
-    }
   }
+}
 
 export class DotnetCoreInstaller {
   static {
@@ -284,14 +284,18 @@ export class DotnetCoreInstaller {
     const versionResolver = new DotnetVersionResolver(this.version);
     const dotnetVersion = await versionResolver.createDotnetVersion();
 
-    const architectureArguments =
-      this.architecture &&
-      normalizeArch(this.architecture) !== normalizeArch(os.arch())
-        ? [
-            IS_WINDOWS ? '-InstallDir' : '--install-dir',
-            path.join(DotnetInstallDir.dirPath, this.architecture)
-          ]
-        : [];
+    const architectureArguments = 
+    this.architecture && 
+    normalizeArch(this.architecture) !== normalizeArch(os.arch())
+      ? [
+      IS_WINDOWS 
+        ? '-InstallDir' 
+        : '--install-dir', 
+      IS_WINDOWS 
+        ? `"${path.join(DotnetInstallDir.dirPath, this.architecture)}"` 
+        : path.join(DotnetInstallDir.dirPath, this.architecture)
+    ]
+    : [];
     /**
      * Install dotnet runitme first in order to get
      * the latest stable version of dotnet CLI

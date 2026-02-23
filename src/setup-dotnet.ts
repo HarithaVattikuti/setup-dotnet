@@ -15,7 +15,6 @@ import {Outputs} from './constants';
 import JSON5 from 'json5';
 import os from 'os';
 
-
 const qualityOptions = [
   'daily',
   'signed',
@@ -164,7 +163,6 @@ function getArchitectureInput(): SupportedArchitecture | '' {
     )}.`
   );
 }
-
 
 function getVersionFromGlobalJson(globalJsonPath: string): string {
   let version = '';
