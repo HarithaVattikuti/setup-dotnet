@@ -184,6 +184,16 @@ export class DotnetInstallScript {
     return this;
   }
 
+    // When architecture is empty/undefined, the installer auto-detects the current runner architecture.
+  public useArchitecture(architecture?: string) {
+      if (!architecture) return this;
+      this.useArguments(
+        IS_WINDOWS ? '-Architecture' : '--architecture',
+        architecture
+      );
+      return this;
+  }
+
   public useVersion(dotnetVersion: DotnetVersion, quality?: QualityOptions) {
     if (dotnetVersion.type) {
       this.useArguments(dotnetVersion.type, dotnetVersion.value);
@@ -247,8 +257,17 @@ export abstract class DotnetInstallDir {
 
   public static setEnvironmentVariable() {
     process.env['DOTNET_INSTALL_DIR'] = DotnetInstallDir.dirPath;
-  }
+    }
 }
+
+export function normalizeArch(arch: string): string {
+  switch (arch.toLowerCase()) {
+    case 'amd64':
+      return 'x64';
+      default:
+        return arch.toLowerCase();
+    }
+  }
 
 export class DotnetCoreInstaller {
   static {
@@ -257,7 +276,8 @@ export class DotnetCoreInstaller {
 
   constructor(
     private version: string,
-    private quality: QualityOptions
+    private quality: QualityOptions,
+    private architecture?: string
   ) {}
 
   public async installDotnet(): Promise<string | null> {
@@ -277,6 +297,7 @@ export class DotnetCoreInstaller {
       .useArguments(IS_WINDOWS ? '-Runtime' : '--runtime', 'dotnet')
       // Use latest stable version
       .useArguments(IS_WINDOWS ? '-Channel' : '--channel', 'LTS')
+      .useArchitecture(this.architecture)
       .execute();
 
     if (runtimeInstallOutput.exitCode) {
@@ -300,6 +321,7 @@ export class DotnetCoreInstaller {
       )
       // Use version provided by user
       .useVersion(dotnetVersion, this.quality)
+      .useArchitecture(this.architecture)
       .execute();
 
     if (dotnetInstallOutput.exitCode) {
