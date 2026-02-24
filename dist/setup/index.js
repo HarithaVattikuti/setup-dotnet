@@ -54941,9 +54941,7 @@ class DotnetCoreInstaller {
         const architectureArguments = this.architecture &&
             normalizeArch(this.architecture) !== normalizeArch(os_1.default.arch())
             ? [
-                utils_1.IS_WINDOWS
-                    ? '-InstallDir'
-                    : '--install-dir',
+                utils_1.IS_WINDOWS ? '-InstallDir' : '--install-dir',
                 utils_1.IS_WINDOWS
                     ? `"${path_1.default.join(DotnetInstallDir.dirPath, this.architecture)}"`
                     : path_1.default.join(DotnetInstallDir.dirPath, this.architecture)
@@ -55122,8 +55120,12 @@ async function run() {
             if (architecture &&
                 (0, installer_1.normalizeArch)(architecture) !== (0, installer_1.normalizeArch)(os_1.default.arch())) {
                 process.env['DOTNET_INSTALL_DIR'] = path_1.default.join(installer_1.DotnetInstallDir.dirPath, architecture);
+                core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+                core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
             }
             installer_1.DotnetInstallDir.addToPath();
+            core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+            core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
             const workloadsInput = core.getInput('workloads');
             if (workloadsInput) {
                 const workloads = workloadsInput

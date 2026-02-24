@@ -104,8 +104,15 @@ export async function run() {
           DotnetInstallDir.dirPath,
           architecture
         );
+        core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+        core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+
       }
       DotnetInstallDir.addToPath();
+
+      core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+      core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+
 
       const workloadsInput = core.getInput('workloads');
       if (workloadsInput) {
