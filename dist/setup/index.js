@@ -55120,12 +55120,14 @@ async function run() {
             if (architecture &&
                 (0, installer_1.normalizeArch)(architecture) !== (0, installer_1.normalizeArch)(os_1.default.arch())) {
                 process.env['DOTNET_INSTALL_DIR'] = path_1.default.join(installer_1.DotnetInstallDir.dirPath, architecture);
-                core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
-                core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+                core.info(`arch process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+                core.info(`arch Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+                core.info(`arch process.env['PATH']: ${process.env['PATH']}`);
             }
             installer_1.DotnetInstallDir.addToPath();
-            core.info(`process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
-            core.info(`Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+            core.info(`default process.env['DOTNET_INSTALL_DIR']: ${process.env['DOTNET_INSTALL_DIR']}`);
+            core.info(`default Dotnet_Root: ${process.env['DOTNET_ROOT']}`);
+            core.info(`default process.env['PATH']: ${process.env['PATH']}`);
             const workloadsInput = core.getInput('workloads');
             if (workloadsInput) {
                 const workloads = workloadsInput
